@@ -80,8 +80,13 @@ class DashboardApiController extends BaseAPIController
             ->where('accounts.id', '=', Auth::user()->account_id)
             ->where('clients.is_deleted', '=', false)
             ->groupBy('accounts.id')
-            ->groupBy(DB::raw('CASE WHEN clients.currency_id IS NULL THEN CASE WHEN accounts.currency_id IS NULL THEN 1 ELSE accounts.currency_id END ELSE clients.currency_id END'))
-            ->get();
+            ->groupBy(DB::raw('CASE WHEN clients.currency_id IS NULL THEN CASE WHEN accounts.currency_id IS NULL THEN 1 ELSE accounts.currency_id END ELSE clients.currency_id END'));
+
+        if (!$view_all) {
+            $balances->where('clients.user_id', '=', $user_id);
+        }
+
+        $balances = $balances->get();
 
         $pastDue = DB::table('invoices')
                     ->leftJoin('clients', 'clients.id', '=', 'invoices.client_id')
@@ -161,12 +166,12 @@ class DashboardApiController extends BaseAPIController
 
         $data = [
                 'id' => 1,
-                'paidToDate' => $paidToDate[0]->value,
-                'paidToDateCurrency' => $paidToDate[0]->currency_id,
-                'balances' => $balances[0]->value,
-                'balancesCurrency' => $balances[0]->currency_id,
-                'averageInvoice' => $averageInvoice[0]->invoice_avg,
-                'averageInvoiceCurrency' => $averageInvoice[0]->currency_id,
+                'paidToDate' => $paidToDate[0]->value ? $paidToDate[0]->value : 0,
+                'paidToDateCurrency' => $paidToDate[0]->currency_id ? $paidToDate[0]->currency_id : 0,
+                'balances' => $balances[0]->value ? $balances[0]->value : 0,
+                'balancesCurrency' => $balances[0]->currency_id ? $balances[0]->currency_id : 0,
+                'averageInvoice' => $averageInvoice[0]->invoice_avg ? $averageInvoice[0]->invoice_avg : 0,
+                'averageInvoiceCurrency' => $averageInvoice[0]->currency_id ? $averageInvoice[0]->currency_id : 0,
                 'invoicesSent' => $metrics ? $metrics->invoices_sent : 0,
                 'activeClients' => $metrics ? $metrics->active_clients : 0,
             ];
