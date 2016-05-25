@@ -974,47 +974,59 @@
         })
 
         // Initialize document upload
-        dropzone = new Dropzone('#document-upload .dropzone', {
-            url:{!! json_encode(url('document')) !!},
-            params:{
-                _token:"{{ Session::getToken() }}"
-            },
-            acceptedFiles:{!! json_encode(implode(',',\App\Models\Document::$allowedMimes)) !!},
-            addRemoveLinks:true,
-            @foreach(trans('texts.dropzone') as $key=>$text)
-            "dict{{strval($key)}}":"{{strval($text)}}",
-            @endforeach
-            maxFileSize:{{floatval(MAX_DOCUMENT_SIZE/1000)}},
-        });
-        if(dropzone instanceof Dropzone){
-            dropzone.on("addedfile",handleDocumentAdded);
-            dropzone.on("removedfile",handleDocumentRemoved);
-            dropzone.on("success",handleDocumentUploaded);
-            for (var i=0; i<model.invoice().documents().length; i++) {
-                var document = model.invoice().documents()[i];
-                var mockFile = {
-                    name:document.name(),
-                    size:document.size(),
-                    type:document.type(),
-                    public_id:document.public_id(),
-                    status:Dropzone.SUCCESS,
-                    accepted:true,
-                    url:document.preview_url()||document.url(),
-                    mock:true,
-                    index:i
-                };
-
-                dropzone.emit('addedfile', mockFile);
-                dropzone.emit('complete', mockFile);
-                if(document.preview_url()){
-                    dropzone.emit('thumbnail', mockFile, document.preview_url()||document.url());
-                }
-                else if(document.type()=='jpeg' || document.type()=='png' || document.type()=='svg'){
-                    dropzone.emit('thumbnail', mockFile, document.url());
-                }
-                dropzone.files.push(mockFile);
+        window.dropzone = false;
+        $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+            if (window.dropzone) {
+                return;
             }
-        }
+
+            var target = $(e.target).attr('href') // activated tab
+            if (target != '#attached-documents') {
+                return;
+            }
+
+            window.dropzone = new Dropzone('#document-upload .dropzone', {
+                url:{!! json_encode(url('document')) !!},
+                params:{
+                    _token:"{{ Session::getToken() }}"
+                },
+                acceptedFiles:{!! json_encode(implode(',',\App\Models\Document::$allowedMimes)) !!},
+                addRemoveLinks:true,
+                @foreach(trans('texts.dropzone') as $key=>$text)
+    	            "dict{{strval($key)}}":"{{strval($text)}}",
+                @endforeach
+                maxFileSize:{{floatval(MAX_DOCUMENT_SIZE/1000)}},
+            });
+            if(dropzone instanceof Dropzone){
+                dropzone.on("addedfile",handleDocumentAdded);
+                dropzone.on("removedfile",handleDocumentRemoved);
+                dropzone.on("success",handleDocumentUploaded);
+                for (var i=0; i<model.invoice().documents().length; i++) {
+                    var document = model.invoice().documents()[i];
+                    var mockFile = {
+                        name:document.name(),
+                        size:document.size(),
+                        type:document.type(),
+                        public_id:document.public_id(),
+                        status:Dropzone.SUCCESS,
+                        accepted:true,
+                        url:document.url(),
+                        mock:true,
+                        index:i
+                    };
+
+                    dropzone.emit('addedfile', mockFile);
+                    dropzone.emit('complete', mockFile);
+                    if(document.preview_url()){
+                        dropzone.emit('thumbnail', mockFile, document.preview_url());
+                    }
+                    else if(document.type()=='jpeg' || document.type()=='png' || document.type()=='svg'){
+                        dropzone.emit('thumbnail', mockFile, document.url());
+                    }
+                    dropzone.files.push(mockFile);
+                }
+            }
+        });
         @endif
 	});
 
@@ -1174,7 +1186,7 @@
 				submitAction('');
 			}
 		} else {
-            preparePdfData('');
+            submitAction('');
 		}
 	}
 
@@ -1210,6 +1222,10 @@
 	}
 
     function onFormSubmit(event) {
+        if (window.countUploadingDocuments > 0) {
+            return false;
+        }
+
         if (!isSaveValid()) {
             model.showClientForm();
             return false;
@@ -1380,6 +1396,7 @@
         model.invoice().invoice_number(number);
     }
 
+    window.countUploadingDocuments = 0;
     @if ($account->hasFeature(FEATURE_DOCUMENTS))
     function handleDocumentAdded(file){
         // open document when clicked
@@ -1391,6 +1408,7 @@
         if(file.mock)return;
         file.index = model.invoice().documents().length;
         model.invoice().addDocument({name:file.name, size:file.size, type:file.type});
+        window.countUploadingDocuments++;
     }
 
     function handleDocumentRemoved(file){
@@ -1401,6 +1419,7 @@
     function handleDocumentUploaded(file, response){
         file.public_id = response.document.public_id
         model.invoice().documents()[file.index].update(response.document);
+        window.countUploadingDocuments--;
         refreshPDF(true);
 
         if(response.document.preview_url){

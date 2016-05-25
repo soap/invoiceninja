@@ -232,7 +232,7 @@
                 acceptedFiles:{!! json_encode(implode(',',\App\Models\Document::$allowedMimes)) !!},
                 addRemoveLinks:true,
                 @foreach(trans('texts.dropzone') as $key=>$text)
-                "dict{{strval($key)}}":"{{strval($text)}}",
+    	            "dict{{strval($key)}}":"{{strval($text)}}",
                 @endforeach
                 maxFileSize:{{floatval(MAX_DOCUMENT_SIZE/1000)}},
             });
@@ -249,7 +249,7 @@
                         public_id:document.public_id(),
                         status:Dropzone.SUCCESS,
                         accepted:true,
-                        url:document.preview_url()||document.url(),
+                        url:document.url(),
                         mock:true,
                         index:i
                     };
