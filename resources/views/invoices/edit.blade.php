@@ -992,6 +992,7 @@
                 },
                 acceptedFiles:{!! json_encode(implode(',',\App\Models\Document::$allowedMimes)) !!},
                 addRemoveLinks:true,
+                dictRemoveFileConfirmation:"{{trans('texts.are_you_sure')}}",
                 @foreach(trans('texts.dropzone') as $key=>$text)
     	            "dict{{strval($key)}}":"{{strval($text)}}",
                 @endforeach
@@ -1001,6 +1002,7 @@
                 dropzone.on("addedfile",handleDocumentAdded);
                 dropzone.on("removedfile",handleDocumentRemoved);
                 dropzone.on("success",handleDocumentUploaded);
+                dropzone.on("canceled",handleDocumentCanceled);
                 for (var i=0; i<model.invoice().documents().length; i++) {
                     var document = model.invoice().documents()[i];
                     var mockFile = {
@@ -1414,6 +1416,13 @@
     function handleDocumentRemoved(file){
         model.invoice().removeDocument(file.public_id);
         refreshPDF(true);
+        $.ajax({
+            url: '{{ '/documents/' }}' + file.public_id,
+            type: 'DELETE',
+            success: function(result) {
+                // Do something with the result
+            }
+        });
     }
 
     function handleDocumentUploaded(file, response){
@@ -1421,10 +1430,14 @@
         model.invoice().documents()[file.index].update(response.document);
         window.countUploadingDocuments--;
         refreshPDF(true);
-
         if(response.document.preview_url){
             dropzone.emit('thumbnail', file, response.document.preview_url);
         }
+    }
+
+    function handleDocumentCanceled()
+    {
+        window.countUploadingDocuments--;
     }
     @endif
 
