@@ -5,7 +5,7 @@
 # Invoice Ninja
 ### [http://www.invoiceninja.org](http://www.invoiceninja.org)
 
-[![Build Status](https://travis-ci.org/edutechinnovations/invoiceninja.svg?branch=master)](https://travis-ci.org/edutechinnovations/invoiceninja)
+[![Build Status](https://travis-ci.org/soap/invoiceninja.svg?branch=master)](https://travis-ci.org/soap/invoiceninja)
 
 **To update the translations please use [Transifex](https://www.transifex.com/invoice-ninja/invoice-ninja/dashboard/)**
 
