@@ -247,13 +247,14 @@
                 @foreach(trans('texts.dropzone') as $key=>$text)
     	            "dict{{strval($key)}}":"{{strval($text)}}",
                 @endforeach
-                maxFileSize:{{floatval(MAX_DOCUMENT_SIZE/1000)}},
+                maxFilesize:{{floatval(MAX_DOCUMENT_SIZE/1000)}},
             });
             if(dropzone instanceof Dropzone){
                 dropzone.on("addedfile",handleDocumentAdded);
                 dropzone.on("removedfile",handleDocumentRemoved);
                 dropzone.on("success",handleDocumentUploaded);
                 dropzone.on("canceled",handleDocumentCanceled);
+                dropzone.on("error",handleDocumentError);
                 for (var i=0; i<model.documents().length; i++) {
                     var document = model.documents()[i];
                     var mockFile = {
@@ -411,8 +412,11 @@
             }
         }
 
-        function handleDocumentCanceled()
-        {
+        function handleDocumentCanceled() {
+            window.countUploadingDocuments--;
+        }
+
+        function handleDocumentError() {
             window.countUploadingDocuments--;
         }
         @endif

@@ -824,7 +824,7 @@
                 model.invoice().has_tasks(true);
             @endif
 
-            if(model.invoice().expenses() && !model.invoice().public_id()){
+            if(model.invoice().expenses().length && !model.invoice().public_id()){
                 model.expense_currency_id({{ isset($expenseCurrencyId) ? $expenseCurrencyId : 0 }});
 
                 // move the blank invoice line item to the end
@@ -996,13 +996,14 @@
                 @foreach(trans('texts.dropzone') as $key=>$text)
     	            "dict{{strval($key)}}":"{{strval($text)}}",
                 @endforeach
-                maxFileSize:{{floatval(MAX_DOCUMENT_SIZE/1000)}},
+                maxFilesize:{{floatval(MAX_DOCUMENT_SIZE/1000)}},
             });
             if(dropzone instanceof Dropzone){
                 dropzone.on("addedfile",handleDocumentAdded);
                 dropzone.on("removedfile",handleDocumentRemoved);
                 dropzone.on("success",handleDocumentUploaded);
                 dropzone.on("canceled",handleDocumentCanceled);
+                dropzone.on("error",handleDocumentError);
                 for (var i=0; i<model.invoice().documents().length; i++) {
                     var document = model.invoice().documents()[i];
                     var mockFile = {
@@ -1435,8 +1436,11 @@
         }
     }
 
-    function handleDocumentCanceled()
-    {
+    function handleDocumentCanceled() {
+        window.countUploadingDocuments--;
+    }
+
+    function handleDocumentError() {
         window.countUploadingDocuments--;
     }
     @endif
