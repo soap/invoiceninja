@@ -1,6 +1,6 @@
 <?php namespace App\Http\Requests;
 
-class CreateDocumentRequest extends DocumentRequest
+class UpdateDocumentRequest extends DocumentRequest
 {
     /**
      * Determine if the user is authorized to make this request.
@@ -9,7 +9,7 @@ class CreateDocumentRequest extends DocumentRequest
      */
     public function authorize()
     {
-        return $this->user()->can('create', ENTITY_DOCUMENT) && $this->user()->hasFeature(FEATURE_DOCUMENTS);
+        return $this->user()->can('edit', $this->entity());
     }
 
     /**
@@ -20,7 +20,7 @@ class CreateDocumentRequest extends DocumentRequest
     public function rules()
     {
         return [
-            //'file' => 'mimes:jpg'
+
         ];
     }
 }

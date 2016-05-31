@@ -155,7 +155,8 @@ Route::group(['middleware' => 'auth:user'], function() {
     Route::get('documents/{documents}/{filename?}', 'DocumentController@get');
     Route::get('documents/js/{documents}/{filename}', 'DocumentController@getVFSJS');
     Route::get('documents/preview/{documents}/{filename?}', 'DocumentController@getPreview');
-    Route::post('document', 'DocumentController@postUpload');
+    Route::post('documents', 'DocumentController@postUpload');
+    Route::delete('documents/{documents}', 'DocumentController@delete');
 
     Route::get('quotes/create/{client_id?}', 'QuoteController@create');
     Route::get('quotes/{invoices}/clone', 'InvoiceController@cloneInvoice');
@@ -357,6 +358,9 @@ if (!defined('CONTACT_EMAIL')) {
     define('ENTITY_EXPENSE_ACTIVITY', 'expense_activity');
     define('ENTITY_BANK_ACCOUNT', 'bank_account');
     define('ENTITY_BANK_SUBACCOUNT', 'bank_subaccount');
+
+    define('INVOICE_TYPE_STANDARD', 1);
+    define('INVOICE_TYPE_QUOTE', 2);
 
     define('PERSON_CONTACT', 'contact');
     define('PERSON_USER', 'user');
