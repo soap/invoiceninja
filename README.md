@@ -5,8 +5,9 @@
 # Invoice Ninja
 ### [http://www.invoiceninja.org](http://www.invoiceninja.org)
 
-[![Build Status](https://travis-ci.org/invoiceninja/invoiceninja.svg?branch=develop)](https://travis-ci.org/invoiceninja/invoiceninja)
-[![Join the chat at https://gitter.im/hillelcoren/invoice-ninja](https://badges.gitter.im/Join%20Chat.svg)](https://gitter.im/hillelcoren/invoice-ninja?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+[![Build Status](https://travis-ci.org/soap/invoiceninja.svg?branch=master)](https://travis-ci.org/soap/invoiceninja)
+
+**To update the translations please use [Transifex](https://www.transifex.com/invoice-ninja/invoice-ninja/dashboard/)**
 
 ### Affiliates Programs
 * Referral program (we pay you): $100 per signup paid over 3 years - [Learn more](https://www.invoiceninja.com/referral-program/)
