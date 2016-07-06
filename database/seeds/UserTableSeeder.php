@@ -8,7 +8,6 @@ use App\Models\Affiliate;
 use App\Models\Country;
 use App\Models\InvoiceDesign;
 use Faker\Factory;
-
 class UserTableSeeder extends Seeder
 {
 
