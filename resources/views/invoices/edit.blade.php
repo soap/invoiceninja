@@ -8,7 +8,7 @@
     @foreach ($account->getFontFolders() as $font)
         <script src="{{ asset('js/vfs_fonts/'.$font.'.js') }}" type="text/javascript"></script>
     @endforeach
-	<script src="{{ asset('pdf.built.js') }}" type="text/javascript"></script>
+	<script src="{{ asset('pdf.built.js') }}?no_cache={{ NINJA_VERSION }}" type="text/javascript"></script>
     <script src="{{ asset('js/lightbox.min.js') }}" type="text/javascript"></script>
     <link href="{{ asset('css/lightbox.css') }}" rel="stylesheet" type="text/css"/>
 
@@ -18,7 +18,7 @@
             font-weight: normal !important;
         }
 
-        select.tax-select {
+        select.xtax-select {
             width: 50%;
             float: left;
         }
@@ -222,7 +222,7 @@
                 @endif
 				<th style="min-width:120px" data-bind="text: costLabel">{{ $invoiceLabels['unit_cost'] }}</th>
 				<th style="{{ $account->hide_quantity ? 'display:none' : 'min-width:120px' }}" data-bind="text: qtyLabel">{{ $invoiceLabels['quantity'] }}</th>
-				<th style="min-width:180px;display:none;" data-bind="visible: $root.invoice_item_taxes.show">{{ trans('texts.tax') }}</th>
+				<th style="min-width:120px;display:none;" data-bind="visible: $root.invoice_item_taxes.show">{{ trans('texts.tax') }}</th>
 				<th style="min-width:120px;">{{ trans('texts.line_total') }}</th>
 				<th style="min-width:32px;" class="hide-border"></th>
 			</tr>
@@ -271,14 +271,16 @@
                             ->raw() !!}
                     <input type="text" data-bind="value: tax_name1, attr: {name: 'invoice_items[' + $index() + '][tax_name1]'}" style="display:none">
                     <input type="text" data-bind="value: tax_rate1, attr: {name: 'invoice_items[' + $index() + '][tax_rate1]'}" style="display:none">
-                    {!! Former::select('')
-                            ->addOption('', '')
-                            ->options($taxRateOptions)
-                            ->data_bind('value: tax2')
-                            ->addClass('tax-select')
-                            ->raw() !!}
-                    <input type="text" data-bind="value: tax_name2, attr: {name: 'invoice_items[' + $index() + '][tax_name2]'}" style="display:none">
-                    <input type="text" data-bind="value: tax_rate2, attr: {name: 'invoice_items[' + $index() + '][tax_rate2]'}" style="display:none">
+                    <div style="display:none">
+                        {!! Former::select('')
+                                ->addOption('', '')
+                                ->options($taxRateOptions)
+                                ->data_bind('value: tax2')
+                                ->addClass('tax-select')
+                                ->raw() !!}
+                        <input type="text" data-bind="value: tax_name2, attr: {name: 'invoice_items[' + $index() + '][tax_name2]'}" style="display:none">
+                        <input type="text" data-bind="value: tax_rate2, attr: {name: 'invoice_items[' + $index() + '][tax_rate2]'}" style="display:none">
+                    </div>
 				</td>
 				<td style="text-align:right;padding-top:9px !important" nowrap>
 					<div class="line-total" data-bind="text: totals.total"></div>
@@ -304,7 +306,12 @@
                         <li role="presentation"><a href="#terms" aria-controls="terms" role="tab" data-toggle="tab">{{ trans("texts.terms") }}</a></li>
                         <li role="presentation"><a href="#footer" aria-controls="footer" role="tab" data-toggle="tab">{{ trans("texts.footer") }}</a></li>
                         @if ($account->hasFeature(FEATURE_DOCUMENTS))
-                            <li role="presentation"><a href="#attached-documents" aria-controls="attached-documents" role="tab" data-toggle="tab">{{ trans("texts.invoice_documents") }}</a></li>
+                            <li role="presentation"><a href="#attached-documents" aria-controls="attached-documents" role="tab" data-toggle="tab">
+                                {{ trans("texts.invoice_documents") }}
+                                @if (count($invoice->documents))
+                                    ({{ count($invoice->documents) }})
+                                @endif
+                            </a></li>
                         @endif
                     </ul>
 
@@ -422,14 +429,16 @@
                             ->raw() !!}
                     <input type="text" name="tax_name1" data-bind="value: tax_name1" style="display:none">
                     <input type="text" name="tax_rate1" data-bind="value: tax_rate1" style="display:none">
-                    {!! Former::select('')
-                            ->addOption('', '')
-                            ->options($taxRateOptions)
-                            ->addClass('tax-select')
-                            ->data_bind('value: tax2')
-                            ->raw() !!}
-                    <input type="text" name="tax_name2" data-bind="value: tax_name2" style="display:none">
-                    <input type="text" name="tax_rate2" data-bind="value: tax_rate2" style="display:none">
+                    <div style="display:none">
+                        {!! Former::select('')
+                                ->addOption('', '')
+                                ->options($taxRateOptions)
+                                ->addClass('tax-select')
+                                ->data_bind('value: tax2')
+                                ->raw() !!}
+                        <input type="text" name="tax_name2" data-bind="value: tax_name2" style="display:none">
+                        <input type="text" name="tax_rate2" data-bind="value: tax_rate2" style="display:none">
+                    </div>
                 </td>
 				<td style="text-align: right"><span data-bind="text: totals.taxAmount"/></td>
 			</tr>
@@ -1400,7 +1409,7 @@
     }
 
     window.countUploadingDocuments = 0;
-    @if ($account->hasFeature(FEATURE_DOCUMENTS))
+
     function handleDocumentAdded(file){
         // open document when clicked
         if (file.url) {
@@ -1430,7 +1439,9 @@
         file.public_id = response.document.public_id
         model.invoice().documents()[file.index].update(response.document);
         window.countUploadingDocuments--;
-        refreshPDF(true);
+        @if ($account->invoice_embed_documents)
+            refreshPDF(true);
+        @endif
         if(response.document.preview_url){
             dropzone.emit('thumbnail', file, response.document.preview_url);
         }
@@ -1443,7 +1454,6 @@
     function handleDocumentError() {
         window.countUploadingDocuments--;
     }
-    @endif
 
 	</script>
     @if ($account->hasFeature(FEATURE_DOCUMENTS) && $account->invoice_embed_documents)

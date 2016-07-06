@@ -7,11 +7,11 @@
 
 [![Build Status](https://travis-ci.org/soap/invoiceninja.svg?branch=master)](https://travis-ci.org/soap/invoiceninja)
 
-**To update the translations please use [Transifex](https://www.transifex.com/invoice-ninja/invoice-ninja/dashboard/)**
+We're often asked to recommend PHP developers to help setup our app and make small adjustments, email us at contact@invoiceninja.com if you're interested in taking on the work.
 
 ### Affiliates Programs
 * Referral program (we pay you): $100 per signup paid over 3 years - [Learn more](https://www.invoiceninja.com/referral-program/)
-* White-label reseller (you pay us): 10% of revenue with a $100 sign up fee
+* White-label reseller (you pay us): 10% of revenue with a $500 sign up fee
 
 ### Installation Options
 * [Self-Host Zip](https://www.invoiceninja.com/knowledgebase/self-host/) - Free

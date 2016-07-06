@@ -1,6 +1,5 @@
 <?php
 
-
 /*
 |--------------------------------------------------------------------------
 | Application Routes
@@ -252,9 +251,9 @@ Route::group(['middleware' => 'api', 'prefix' => 'api/v1'], function()
     Route::get('accounts', 'AccountApiController@show');
     Route::put('accounts', 'AccountApiController@update');
     Route::resource('clients', 'ClientApiController');
-    //Route::get('quotes', 'QuoteApiController@index');
-    //Route::resource('quotes', 'QuoteApiController');
+    Route::get('quotes', 'QuoteApiController@index');
     Route::get('invoices', 'InvoiceApiController@index');
+    Route::get('download/{invoice_id}', 'InvoiceApiController@download');
     Route::resource('invoices', 'InvoiceApiController');
     Route::get('payments', 'PaymentApiController@index');
     Route::resource('payments', 'PaymentApiController');
@@ -303,8 +302,14 @@ Route::get('/testimonials', function() {
 Route::get('/compare-online-invoicing{sites?}', function() {
     return Redirect::to(NINJA_WEB_URL, 301);
 });
-Route::get('/forgot_password', function() {
-    return Redirect::to(NINJA_APP_URL.'/forgot', 301);
+Route::get('/forgot', function() {
+    return Redirect::to(NINJA_APP_URL.'/recover_password', 301);
+});
+Route::get('/feed', function() {
+    return Redirect::to(NINJA_WEB_URL.'/feed', 301);
+});
+Route::get('/comments/feed', function() {
+    return Redirect::to(NINJA_WEB_URL.'/comments/feed', 301);
 });
 
 
@@ -689,7 +694,7 @@ if (!defined('CONTACT_EMAIL')) {
     define('FEATURE_USER_PERMISSIONS', 'user_permissions');
 
     // Pro users who started paying on or before this date will be able to manage users
-    define('PRO_USERS_GRANDFATHER_DEADLINE', '2016-05-15');
+    define('PRO_USERS_GRANDFATHER_DEADLINE', '2016-06-04');
 
     $creditCards = [
                 1 => ['card' => 'images/credit_cards/Test-Visa-Icon.png', 'text' => 'Visa'],
