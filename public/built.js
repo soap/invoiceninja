@@ -29472,6 +29472,7 @@ links:["Africa/Abidjan|Africa/Bamako","Africa/Abidjan|Africa/Banjul","Africa/Abi
  * limitations under the License.
  */
 !function(t){"use strict";function e(){console.log.apply(console,arguments)}function s(t,e){var s,n,r,i;for(this.list=t,this.options=e=e||{},s=0,i=["sort","shouldSort","verbose","tokenize"],n=i.length;n>s;s++)r=i[s],this.options[r]=r in e?e[r]:h[r];for(s=0,i=["searchFn","sortFn","keys","getFn","include"],n=i.length;n>s;s++)r=i[s],this.options[r]=e[r]||h[r]}function n(t,e,s){var i,o,h,a,p,c;if(e){if(h=e.indexOf("."),-1!==h?(i=e.slice(0,h),o=e.slice(h+1)):i=e,a=t[i],null!==a&&void 0!==a)if(o||"string"!=typeof a&&"number"!=typeof a)if(r(a))for(p=0,c=a.length;c>p;p++)n(a[p],o,s);else o&&n(a,o,s);else s.push(a)}else s.push(t);return s}function r(t){return"[object Array]"===Object.prototype.toString.call(t)}function i(t,e){e=e||{},this.options=e,this.options.location=e.location||i.defaultOptions.location,this.options.distance="distance"in e?e.distance:i.defaultOptions.distance,this.options.threshold="threshold"in e?e.threshold:i.defaultOptions.threshold,this.options.maxPatternLength=e.maxPatternLength||i.defaultOptions.maxPatternLength,this.pattern=e.caseSensitive?t:t.toLowerCase(),this.patternLen=t.length,this.patternLen<=this.options.maxPatternLength&&(this.matchmask=1<<this.patternLen-1,this.patternAlphabet=this._calculatePatternAlphabet())}var o=/ +/g,h={id:null,caseSensitive:!1,include:[],shouldSort:!0,searchFn:i,sortFn:function(t,e){return t.score-e.score},getFn:n,keys:[],verbose:!1,tokenize:!1};s.VERSION="2.0.1",s.prototype.set=function(t){return this.list=t,t},s.prototype.search=function(t){this.options.verbose&&e("=====================\n","Search term:",t),this.pattern=t,this.results=[],this.resultMap={},this._prepareSearchers(),this._startSearch(),this._computeScore(),this._sort();var s=this._format();return s},s.prototype._prepareSearchers=function(){var t=this.options,e=this.pattern,s=t.searchFn,n=e.split(o),r=0,i=n.length;if(this.options.tokenize)for(this.tokenSearchers=[];i>r;r++)this.tokenSearchers.push(new s(n[r],t));this.fullSeacher=new s(e,t)},s.prototype._startSearch=function(){var t,e,s=this.options,n=s.getFn,r=this.list,i=r.length,o=this.options.keys,h=o.length,a=null;if("string"==typeof r[0])for(t=0;i>t;t++)this._analyze(r[t],t,t);else for(t=0;i>t;t++)for(a=r[t],e=0;h>e;e++)this._analyze(n(a,o[e],[]),a,t)},s.prototype._analyze=function(t,s,n){var i,h,a,p,c,l,u,f,d,g,v,m,S,y,b,_=this.options,L=!1;if(void 0!==t&&null!==t)if(h=[],"string"==typeof t){if(i=t.split(o),_.verbose&&e("---------\n","Record:",i),this.options.tokenize){for(a=this.tokenSearchers,p=a.length,y=0;y<this.tokenSearchers.length;y++){for(g=this.tokenSearchers[y],v=[],b=0;b<i.length;b++)m=i[b],S=g.search(m),S.isMatch?(L=!0,v.push(S.score),h.push(S.score)):(v.push(1),h.push(1));_.verbose&&e('Score for "'+g.pattern+'":',v)}for(l=h[0],f=h.length,y=1;f>y;y++)l+=h[y];l/=f,_.verbose&&e("Individual word score average:",l)}d=this.fullSeacher.search(t),_.verbose&&e("Full text score:",d.score),u=d.score,void 0!==l&&(u=(u+l)/2),_.verbose&&e("Average",u),(L||d.isMatch)&&(c=this.resultMap[n],c?c.scores.push(u):(this.resultMap[n]={item:s,scores:[u]},this.results.push(this.resultMap[n])))}else if(r(t))for(y=0;y<t.length;y++)this._analyze(t[y],s,n)},s.prototype._computeScore=function(){var t,e,s,n,r,i=this.results;for(t=0;t<i.length;t++){for(s=0,n=i[t].scores,r=n.length,e=0;r>e;e++)s+=n[e];i[t].score=s/r}},s.prototype._sort=function(){var t=this.options;t.shouldSort&&(t.verbose&&e("Sorting...."),this.results.sort(t.sortFn))},s.prototype._format=function(){var t,s,n,r,i,o=this.options,h=o.getFn,a=[],p=this.results;for(o.verbose&&e("------------\n","Output:\n",p),r=o.id?function(t){p[t].item=h(p[t].item,o.id,[])[0]}:function(){},i=function(t){var e,s,n;if(o.include.length>0)for(e={item:p[t].item},n=0;n<o.include.length;n++)s=o.include[n],e[s]=p[t][s];else e=p[t].item;return e},s=0,n=p.length;n>s;s++)r(s),t=i(s),a.push(t);return a},i.defaultOptions={location:0,distance:100,threshold:.6,maxPatternLength:32},i.prototype._calculatePatternAlphabet=function(){var t={},e=0;for(e=0;e<this.patternLen;e++)t[this.pattern.charAt(e)]=0;for(e=0;e<this.patternLen;e++)t[this.pattern.charAt(e)]|=1<<this.pattern.length-e-1;return t},i.prototype._bitapScore=function(t,e){var s=t/this.patternLen,n=Math.abs(this.options.location-e);return this.options.distance?s+n/this.options.distance:n?1:s},i.prototype.search=function(t){var e,s,n,r,i,h,a,p,c,l,u,f,d,g,v,m,S,y,b=this.options;if(t=b.caseSensitive?t:t.toLowerCase(),this.pattern===t)return{isMatch:!0,score:0};if(this.patternLen>b.maxPatternLength)return S=t.match(new RegExp(this.pattern.replace(o,"|"))),y=!!S,{isMatch:y,score:y?.5:1};for(r=b.location,n=t.length,i=b.threshold,h=t.indexOf(this.pattern,r),-1!=h&&(i=Math.min(this._bitapScore(0,h),i),h=t.lastIndexOf(this.pattern,r+this.patternLen),-1!=h&&(i=Math.min(this._bitapScore(0,h),i))),h=-1,v=1,m=[],c=this.patternLen+n,e=0;e<this.patternLen;e++){for(a=0,p=c;p>a;)this._bitapScore(e,r+p)<=i?a=p:c=p,p=Math.floor((c-a)/2+a);for(c=p,l=Math.max(1,r-p+1),u=Math.min(r+p,n)+this.patternLen,f=Array(u+2),f[u+1]=(1<<e)-1,s=u;s>=l;s--)if(g=this.patternAlphabet[t.charAt(s-1)],0===e?f[s]=(f[s+1]<<1|1)&g:f[s]=(f[s+1]<<1|1)&g|((d[s+1]|d[s])<<1|1)|d[s+1],f[s]&this.matchmask&&(v=this._bitapScore(e,s-1),i>=v)){if(i=v,h=s-1,m.push(h),!(h>r))break;l=Math.max(1,2*r-h)}if(this._bitapScore(e+1,r)>i)break;d=f}return{isMatch:h>=0,score:0===v?.001:v}},"object"==typeof exports?module.exports=s:"function"==typeof define&&define.amd?define(function(){return s}):t.Fuse=s}(this);
+!function(e,t,n){"use strict";!function o(e,t,n){function a(s,l){if(!t[s]){if(!e[s]){var i="function"==typeof require&&require;if(!l&&i)return i(s,!0);if(r)return r(s,!0);var u=new Error("Cannot find module '"+s+"'");throw u.code="MODULE_NOT_FOUND",u}var c=t[s]={exports:{}};e[s][0].call(c.exports,function(t){var n=e[s][1][t];return a(n?n:t)},c,c.exports,o,e,t,n)}return t[s].exports}for(var r="function"==typeof require&&require,s=0;s<n.length;s++)a(n[s]);return a}({1:[function(o,a,r){var s=function(e){return e&&e.__esModule?e:{"default":e}};Object.defineProperty(r,"__esModule",{value:!0});var l,i,u,c,d=o("./modules/handle-dom"),f=o("./modules/utils"),p=o("./modules/handle-swal-dom"),m=o("./modules/handle-click"),v=o("./modules/handle-key"),y=s(v),h=o("./modules/default-params"),b=s(h),g=o("./modules/set-params"),w=s(g);r["default"]=u=c=function(){function o(e){var t=a;return t[e]===n?b["default"][e]:t[e]}var a=arguments[0];if(d.addClass(t.body,"stop-scrolling"),p.resetInput(),a===n)return f.logStr("SweetAlert expects at least 1 attribute!"),!1;var r=f.extend({},b["default"]);switch(typeof a){case"string":r.title=a,r.text=arguments[1]||"",r.type=arguments[2]||"";break;case"object":if(a.title===n)return f.logStr('Missing "title" argument!'),!1;r.title=a.title;for(var s in b["default"])r[s]=o(s);r.confirmButtonText=r.showCancelButton?"Confirm":b["default"].confirmButtonText,r.confirmButtonText=o("confirmButtonText"),r.doneFunction=arguments[1]||null;break;default:return f.logStr('Unexpected type of argument! Expected "string" or "object", got '+typeof a),!1}w["default"](r),p.fixVerticalPosition(),p.openModal(arguments[1]);for(var u=p.getModal(),v=u.querySelectorAll("button"),h=["onclick","onmouseover","onmouseout","onmousedown","onmouseup","onfocus"],g=function(e){return m.handleButton(e,r,u)},C=0;C<v.length;C++)for(var S=0;S<h.length;S++){var x=h[S];v[C][x]=g}p.getOverlay().onclick=g,l=e.onkeydown;var k=function(e){return y["default"](e,r,u)};e.onkeydown=k,e.onfocus=function(){setTimeout(function(){i!==n&&(i.focus(),i=n)},0)},c.enableButtons()},u.setDefaults=c.setDefaults=function(e){if(!e)throw new Error("userParams is required");if("object"!=typeof e)throw new Error("userParams has to be a object");f.extend(b["default"],e)},u.close=c.close=function(){var o=p.getModal();d.fadeOut(p.getOverlay(),5),d.fadeOut(o,5),d.removeClass(o,"showSweetAlert"),d.addClass(o,"hideSweetAlert"),d.removeClass(o,"visible");var a=o.querySelector(".sa-icon.sa-success");d.removeClass(a,"animate"),d.removeClass(a.querySelector(".sa-tip"),"animateSuccessTip"),d.removeClass(a.querySelector(".sa-long"),"animateSuccessLong");var r=o.querySelector(".sa-icon.sa-error");d.removeClass(r,"animateErrorIcon"),d.removeClass(r.querySelector(".sa-x-mark"),"animateXMark");var s=o.querySelector(".sa-icon.sa-warning");return d.removeClass(s,"pulseWarning"),d.removeClass(s.querySelector(".sa-body"),"pulseWarningIns"),d.removeClass(s.querySelector(".sa-dot"),"pulseWarningIns"),setTimeout(function(){var e=o.getAttribute("data-custom-class");d.removeClass(o,e)},300),d.removeClass(t.body,"stop-scrolling"),e.onkeydown=l,e.previousActiveElement&&e.previousActiveElement.focus(),i=n,clearTimeout(o.timeout),!0},u.showInputError=c.showInputError=function(e){var t=p.getModal(),n=t.querySelector(".sa-input-error");d.addClass(n,"show");var o=t.querySelector(".sa-error-container");d.addClass(o,"show"),o.querySelector("p").innerHTML=e,setTimeout(function(){u.enableButtons()},1),t.querySelector("input").focus()},u.resetInputError=c.resetInputError=function(e){if(e&&13===e.keyCode)return!1;var t=p.getModal(),n=t.querySelector(".sa-input-error");d.removeClass(n,"show");var o=t.querySelector(".sa-error-container");d.removeClass(o,"show")},u.disableButtons=c.disableButtons=function(){var e=p.getModal(),t=e.querySelector("button.confirm"),n=e.querySelector("button.cancel");t.disabled=!0,n.disabled=!0},u.enableButtons=c.enableButtons=function(){var e=p.getModal(),t=e.querySelector("button.confirm"),n=e.querySelector("button.cancel");t.disabled=!1,n.disabled=!1},"undefined"!=typeof e?e.sweetAlert=e.swal=u:f.logStr("SweetAlert is a frontend module!"),a.exports=r["default"]},{"./modules/default-params":2,"./modules/handle-click":3,"./modules/handle-dom":4,"./modules/handle-key":5,"./modules/handle-swal-dom":6,"./modules/set-params":8,"./modules/utils":9}],2:[function(e,t,n){Object.defineProperty(n,"__esModule",{value:!0});var o={title:"",text:"",type:null,allowOutsideClick:!1,showConfirmButton:!0,showCancelButton:!1,closeOnConfirm:!0,closeOnCancel:!0,confirmButtonText:"OK",confirmButtonColor:"#8CD4F5",cancelButtonText:"Cancel",imageUrl:null,imageSize:null,timer:null,customClass:"",html:!1,animation:!0,allowEscapeKey:!0,inputType:"text",inputPlaceholder:"",inputValue:"",showLoaderOnConfirm:!1};n["default"]=o,t.exports=n["default"]},{}],3:[function(t,n,o){Object.defineProperty(o,"__esModule",{value:!0});var a=t("./utils"),r=(t("./handle-swal-dom"),t("./handle-dom")),s=function(t,n,o){function s(e){m&&n.confirmButtonColor&&(p.style.backgroundColor=e)}var u,c,d,f=t||e.event,p=f.target||f.srcElement,m=-1!==p.className.indexOf("confirm"),v=-1!==p.className.indexOf("sweet-overlay"),y=r.hasClass(o,"visible"),h=n.doneFunction&&"true"===o.getAttribute("data-has-done-function");switch(m&&n.confirmButtonColor&&(u=n.confirmButtonColor,c=a.colorLuminance(u,-.04),d=a.colorLuminance(u,-.14)),f.type){case"mouseover":s(c);break;case"mouseout":s(u);break;case"mousedown":s(d);break;case"mouseup":s(c);break;case"focus":var b=o.querySelector("button.confirm"),g=o.querySelector("button.cancel");m?g.style.boxShadow="none":b.style.boxShadow="none";break;case"click":var w=o===p,C=r.isDescendant(o,p);if(!w&&!C&&y&&!n.allowOutsideClick)break;m&&h&&y?l(o,n):h&&y||v?i(o,n):r.isDescendant(o,p)&&"BUTTON"===p.tagName&&sweetAlert.close()}},l=function(e,t){var n=!0;r.hasClass(e,"show-input")&&(n=e.querySelector("input").value,n||(n="")),t.doneFunction(n),t.closeOnConfirm&&sweetAlert.close(),t.showLoaderOnConfirm&&sweetAlert.disableButtons()},i=function(e,t){var n=String(t.doneFunction).replace(/\s/g,""),o="function("===n.substring(0,9)&&")"!==n.substring(9,10);o&&t.doneFunction(!1),t.closeOnCancel&&sweetAlert.close()};o["default"]={handleButton:s,handleConfirm:l,handleCancel:i},n.exports=o["default"]},{"./handle-dom":4,"./handle-swal-dom":6,"./utils":9}],4:[function(n,o,a){Object.defineProperty(a,"__esModule",{value:!0});var r=function(e,t){return new RegExp(" "+t+" ").test(" "+e.className+" ")},s=function(e,t){r(e,t)||(e.className+=" "+t)},l=function(e,t){var n=" "+e.className.replace(/[\t\r\n]/g," ")+" ";if(r(e,t)){for(;n.indexOf(" "+t+" ")>=0;)n=n.replace(" "+t+" "," ");e.className=n.replace(/^\s+|\s+$/g,"")}},i=function(e){var n=t.createElement("div");return n.appendChild(t.createTextNode(e)),n.innerHTML},u=function(e){e.style.opacity="",e.style.display="block"},c=function(e){if(e&&!e.length)return u(e);for(var t=0;t<e.length;++t)u(e[t])},d=function(e){e.style.opacity="",e.style.display="none"},f=function(e){if(e&&!e.length)return d(e);for(var t=0;t<e.length;++t)d(e[t])},p=function(e,t){for(var n=t.parentNode;null!==n;){if(n===e)return!0;n=n.parentNode}return!1},m=function(e){e.style.left="-9999px",e.style.display="block";var t,n=e.clientHeight;return t="undefined"!=typeof getComputedStyle?parseInt(getComputedStyle(e).getPropertyValue("padding-top"),10):parseInt(e.currentStyle.padding),e.style.left="",e.style.display="none","-"+parseInt((n+t)/2)+"px"},v=function(e,t){if(+e.style.opacity<1){t=t||16,e.style.opacity=0,e.style.display="block";var n=+new Date,o=function(e){function t(){return e.apply(this,arguments)}return t.toString=function(){return e.toString()},t}(function(){e.style.opacity=+e.style.opacity+(new Date-n)/100,n=+new Date,+e.style.opacity<1&&setTimeout(o,t)});o()}e.style.display="block"},y=function(e,t){t=t||16,e.style.opacity=1;var n=+new Date,o=function(e){function t(){return e.apply(this,arguments)}return t.toString=function(){return e.toString()},t}(function(){e.style.opacity=+e.style.opacity-(new Date-n)/100,n=+new Date,+e.style.opacity>0?setTimeout(o,t):e.style.display="none"});o()},h=function(n){if("function"==typeof MouseEvent){var o=new MouseEvent("click",{view:e,bubbles:!1,cancelable:!0});n.dispatchEvent(o)}else if(t.createEvent){var a=t.createEvent("MouseEvents");a.initEvent("click",!1,!1),n.dispatchEvent(a)}else t.createEventObject?n.fireEvent("onclick"):"function"==typeof n.onclick&&n.onclick()},b=function(t){"function"==typeof t.stopPropagation?(t.stopPropagation(),t.preventDefault()):e.event&&e.event.hasOwnProperty("cancelBubble")&&(e.event.cancelBubble=!0)};a.hasClass=r,a.addClass=s,a.removeClass=l,a.escapeHtml=i,a._show=u,a.show=c,a._hide=d,a.hide=f,a.isDescendant=p,a.getTopMargin=m,a.fadeIn=v,a.fadeOut=y,a.fireClick=h,a.stopEventPropagation=b},{}],5:[function(t,o,a){Object.defineProperty(a,"__esModule",{value:!0});var r=t("./handle-dom"),s=t("./handle-swal-dom"),l=function(t,o,a){var l=t||e.event,i=l.keyCode||l.which,u=a.querySelector("button.confirm"),c=a.querySelector("button.cancel"),d=a.querySelectorAll("button[tabindex]");if(-1!==[9,13,32,27].indexOf(i)){for(var f=l.target||l.srcElement,p=-1,m=0;m<d.length;m++)if(f===d[m]){p=m;break}9===i?(f=-1===p?u:p===d.length-1?d[0]:d[p+1],r.stopEventPropagation(l),f.focus(),o.confirmButtonColor&&s.setFocusStyle(f,o.confirmButtonColor)):13===i?("INPUT"===f.tagName&&(f=u,u.focus()),f=-1===p?u:n):27===i&&o.allowEscapeKey===!0?(f=c,r.fireClick(f,l)):f=n}};a["default"]=l,o.exports=a["default"]},{"./handle-dom":4,"./handle-swal-dom":6}],6:[function(n,o,a){var r=function(e){return e&&e.__esModule?e:{"default":e}};Object.defineProperty(a,"__esModule",{value:!0});var s=n("./utils"),l=n("./handle-dom"),i=n("./default-params"),u=r(i),c=n("./injected-html"),d=r(c),f=".sweet-alert",p=".sweet-overlay",m=function(){var e=t.createElement("div");for(e.innerHTML=d["default"];e.firstChild;)t.body.appendChild(e.firstChild)},v=function(e){function t(){return e.apply(this,arguments)}return t.toString=function(){return e.toString()},t}(function(){var e=t.querySelector(f);return e||(m(),e=v()),e}),y=function(){var e=v();return e?e.querySelector("input"):void 0},h=function(){return t.querySelector(p)},b=function(e,t){var n=s.hexToRgb(t);e.style.boxShadow="0 0 2px rgba("+n+", 0.8), inset 0 0 0 1px rgba(0, 0, 0, 0.05)"},g=function(n){var o=v();l.fadeIn(h(),10),l.show(o),l.addClass(o,"showSweetAlert"),l.removeClass(o,"hideSweetAlert"),e.previousActiveElement=t.activeElement;var a=o.querySelector("button.confirm");a.focus(),setTimeout(function(){l.addClass(o,"visible")},500);var r=o.getAttribute("data-timer");if("null"!==r&&""!==r){var s=n;o.timeout=setTimeout(function(){var e=(s||null)&&"true"===o.getAttribute("data-has-done-function");e?s(null):sweetAlert.close()},r)}},w=function(){var e=v(),t=y();l.removeClass(e,"show-input"),t.value=u["default"].inputValue,t.setAttribute("type",u["default"].inputType),t.setAttribute("placeholder",u["default"].inputPlaceholder),C()},C=function(e){if(e&&13===e.keyCode)return!1;var t=v(),n=t.querySelector(".sa-input-error");l.removeClass(n,"show");var o=t.querySelector(".sa-error-container");l.removeClass(o,"show")},S=function(){var e=v();e.style.marginTop=l.getTopMargin(v())};a.sweetAlertInitialize=m,a.getModal=v,a.getOverlay=h,a.getInput=y,a.setFocusStyle=b,a.openModal=g,a.resetInput=w,a.resetInputError=C,a.fixVerticalPosition=S},{"./default-params":2,"./handle-dom":4,"./injected-html":7,"./utils":9}],7:[function(e,t,n){Object.defineProperty(n,"__esModule",{value:!0});var o='<div class="sweet-overlay" tabIndex="-1"></div><div class="sweet-alert"><div class="sa-icon sa-error">\n      <span class="sa-x-mark">\n        <span class="sa-line sa-left"></span>\n        <span class="sa-line sa-right"></span>\n      </span>\n    </div><div class="sa-icon sa-warning">\n      <span class="sa-body"></span>\n      <span class="sa-dot"></span>\n    </div><div class="sa-icon sa-info"></div><div class="sa-icon sa-success">\n      <span class="sa-line sa-tip"></span>\n      <span class="sa-line sa-long"></span>\n\n      <div class="sa-placeholder"></div>\n      <div class="sa-fix"></div>\n    </div><div class="sa-icon sa-custom"></div><h2>Title</h2>\n    <p>Text</p>\n    <fieldset>\n      <input type="text" tabIndex="3" />\n      <div class="sa-input-error"></div>\n    </fieldset><div class="sa-error-container">\n      <div class="icon">!</div>\n      <p>Not valid!</p>\n    </div><div class="sa-button-container">\n      <button class="cancel" tabIndex="2">Cancel</button>\n      <div class="sa-confirm-button-container">\n        <button class="confirm" tabIndex="1">OK</button><div class="la-ball-fall">\n          <div></div>\n          <div></div>\n          <div></div>\n        </div>\n      </div>\n    </div></div>';n["default"]=o,t.exports=n["default"]},{}],8:[function(e,t,o){Object.defineProperty(o,"__esModule",{value:!0});var a=e("./utils"),r=e("./handle-swal-dom"),s=e("./handle-dom"),l=["error","warning","info","success","input","prompt"],i=function(e){var t=r.getModal(),o=t.querySelector("h2"),i=t.querySelector("p"),u=t.querySelector("button.cancel"),c=t.querySelector("button.confirm");if(o.innerHTML=e.html?e.title:s.escapeHtml(e.title).split("\n").join("<br>"),i.innerHTML=e.html?e.text:s.escapeHtml(e.text||"").split("\n").join("<br>"),e.text&&s.show(i),e.customClass)s.addClass(t,e.customClass),t.setAttribute("data-custom-class",e.customClass);else{var d=t.getAttribute("data-custom-class");s.removeClass(t,d),t.setAttribute("data-custom-class","")}if(s.hide(t.querySelectorAll(".sa-icon")),e.type&&!a.isIE8()){var f=function(){for(var o=!1,a=0;a<l.length;a++)if(e.type===l[a]){o=!0;break}if(!o)return logStr("Unknown alert type: "+e.type),{v:!1};var i=["success","error","warning","info"],u=n;-1!==i.indexOf(e.type)&&(u=t.querySelector(".sa-icon.sa-"+e.type),s.show(u));var c=r.getInput();switch(e.type){case"success":s.addClass(u,"animate"),s.addClass(u.querySelector(".sa-tip"),"animateSuccessTip"),s.addClass(u.querySelector(".sa-long"),"animateSuccessLong");break;case"error":s.addClass(u,"animateErrorIcon"),s.addClass(u.querySelector(".sa-x-mark"),"animateXMark");break;case"warning":s.addClass(u,"pulseWarning"),s.addClass(u.querySelector(".sa-body"),"pulseWarningIns"),s.addClass(u.querySelector(".sa-dot"),"pulseWarningIns");break;case"input":case"prompt":c.setAttribute("type",e.inputType),c.value=e.inputValue,c.setAttribute("placeholder",e.inputPlaceholder),s.addClass(t,"show-input"),setTimeout(function(){c.focus(),c.addEventListener("keyup",swal.resetInputError)},400)}}();if("object"==typeof f)return f.v}if(e.imageUrl){var p=t.querySelector(".sa-icon.sa-custom");p.style.backgroundImage="url("+e.imageUrl+")",s.show(p);var m=80,v=80;if(e.imageSize){var y=e.imageSize.toString().split("x"),h=y[0],b=y[1];h&&b?(m=h,v=b):logStr("Parameter imageSize expects value with format WIDTHxHEIGHT, got "+e.imageSize)}p.setAttribute("style",p.getAttribute("style")+"width:"+m+"px; height:"+v+"px")}t.setAttribute("data-has-cancel-button",e.showCancelButton),e.showCancelButton?u.style.display="inline-block":s.hide(u),t.setAttribute("data-has-confirm-button",e.showConfirmButton),e.showConfirmButton?c.style.display="inline-block":s.hide(c),e.cancelButtonText&&(u.innerHTML=s.escapeHtml(e.cancelButtonText)),e.confirmButtonText&&(c.innerHTML=s.escapeHtml(e.confirmButtonText)),e.confirmButtonColor&&(c.style.backgroundColor=e.confirmButtonColor,c.style.borderLeftColor=e.confirmLoadingButtonColor,c.style.borderRightColor=e.confirmLoadingButtonColor,r.setFocusStyle(c,e.confirmButtonColor)),t.setAttribute("data-allow-outside-click",e.allowOutsideClick);var g=e.doneFunction?!0:!1;t.setAttribute("data-has-done-function",g),e.animation?"string"==typeof e.animation?t.setAttribute("data-animation",e.animation):t.setAttribute("data-animation","pop"):t.setAttribute("data-animation","none"),t.setAttribute("data-timer",e.timer)};o["default"]=i,t.exports=o["default"]},{"./handle-dom":4,"./handle-swal-dom":6,"./utils":9}],9:[function(t,n,o){Object.defineProperty(o,"__esModule",{value:!0});var a=function(e,t){for(var n in t)t.hasOwnProperty(n)&&(e[n]=t[n]);return e},r=function(e){var t=/^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(e);return t?parseInt(t[1],16)+", "+parseInt(t[2],16)+", "+parseInt(t[3],16):null},s=function(){return e.attachEvent&&!e.addEventListener},l=function(t){e.console&&e.console.log("SweetAlert: "+t)},i=function(e,t){e=String(e).replace(/[^0-9a-f]/gi,""),e.length<6&&(e=e[0]+e[0]+e[1]+e[1]+e[2]+e[2]),t=t||0;var n,o,a="#";for(o=0;3>o;o++)n=parseInt(e.substr(2*o,2),16),n=Math.round(Math.min(Math.max(0,n+n*t),255)).toString(16),a+=("00"+n).substr(n.length);return a};o.extend=a,o.hexToRgb=r,o.isIE8=s,o.logStr=l,o.colorLuminance=i},{}]},{},[1]),"function"==typeof define&&define.amd?define(function(){return sweetAlert}):"undefined"!=typeof module&&module.exports&&(module.exports=sweetAlert)}(window,document);
 /* =============================================================
  * bootstrap-combobox.js v1.1.5
  * =============================================================
@@ -30319,6 +30320,34 @@ if (window.ko) {
         trigger: "hover"
     }
   };
+
+  ko.bindingHandlers.typeahead = {
+      init: function (element, valueAccessor, allBindingsAccessor, viewModel, bindingContext) {
+          var $element = $(element);
+          var allBindings = allBindingsAccessor();
+
+          $element.typeahead({
+              highlight: true,
+              minLength: 0,
+          },
+          {
+              name: 'data',
+              display: allBindings.key,
+              limit: 50,
+              source: searchData(allBindings.items, allBindings.key)
+          }).on('typeahead:change', function(element, datum, name) {
+              var value = valueAccessor();
+              value(datum);
+          });
+      },
+
+      update: function (element, valueAccessor) {
+          var value = ko.utils.unwrapObservable(valueAccessor());
+          if (value) {
+              $(element).typeahead('val', value);
+          }
+      }
+  };
 }
 
 function getContactDisplayName(contact)
@@ -30367,7 +30396,11 @@ function populateInvoiceComboboxes(clientId, invoiceId) {
   $clientSelect.append(new Option('', ''));
   for (var i=0; i<clients.length; i++) {
     var client = clients[i];
-    $clientSelect.append(new Option(getClientDisplayName(client), client.public_id));
+    var clientName = getClientDisplayName(client);
+    if (!clientName) {
+        continue;
+    }
+    $clientSelect.append(new Option(clientName, client.public_id));
   }
 
   if (clientId) {
@@ -30391,7 +30424,7 @@ function populateInvoiceComboboxes(clientId, invoiceId) {
     for (var i=0; i<list.length; i++) {
       var invoice = list[i];
       var client = clientMap[invoice.client.public_id];
-      if (!client) continue; // client is deleted/archived
+      if (!client || !getClientDisplayName(client)) continue; // client is deleted/archived
       $invoiceCombobox.append(new Option(invoice.invoice_number + ' - ' + invoice.invoice_status.name + ' - ' +
                 getClientDisplayName(client) + ' - ' + formatMoneyInvoice(invoice.amount, invoice) + ' | ' +
                 formatMoneyInvoice(invoice.balance, invoice),  invoice.public_id));
@@ -30450,7 +30483,7 @@ function formatAddress(city, state, zip, swap) {
         str += zip ? zip + ' ' : '';
         str += city ? city : '';
         str += (city && state) ? ', ' : (city ? ' ' : '');
-        str += state;        
+        str += state;
     } else {
         str += city ? city : '';
         str += (city && state) ? ', ' : (state ? ' ' : '');
@@ -30484,7 +30517,7 @@ function calculateAmounts(invoice) {
   var hasTaxes = false;
   var taxes = {};
   invoice.has_product_key = false;
-  
+
   // Bold designs currently breaks w/o the product column
   if (invoice.invoice_design_id == 2) {
       invoice.has_product_key = true;
@@ -30513,12 +30546,12 @@ function calculateAmounts(invoice) {
         invoice.has_product_key = true;
     }
 
-    if (item.tax_rate1 && parseFloat(item.tax_rate1)) {
+    if (item.tax_name1) {
       taxRate1 = parseFloat(item.tax_rate1);
       taxName1 = item.tax_name1;
     }
 
-    if (item.tax_rate2 && parseFloat(item.tax_rate2)) {
+    if (item.tax_name2) {
       taxRate2 = parseFloat(item.tax_rate2);
       taxName2 = item.tax_name2;
     }
@@ -30532,9 +30565,9 @@ function calculateAmounts(invoice) {
             lineTotal -= roundToTwo(lineTotal * (invoice.discount/100));
         }
     }
-    
+
     var taxAmount1 = roundToTwo(lineTotal * taxRate1 / 100);
-    if (taxAmount1) {
+    if (taxName1) {
       var key = taxName1 + taxRate1;
       if (taxes.hasOwnProperty(key)) {
         taxes[key].amount += taxAmount1;
@@ -30544,7 +30577,7 @@ function calculateAmounts(invoice) {
     }
 
     var taxAmount2 = roundToTwo(lineTotal * taxRate2 / 100);
-    if (taxAmount2) {
+    if (taxName2) {
       var key = taxName2 + taxRate2;
       if (taxes.hasOwnProperty(key)) {
         taxes[key].amount += taxAmount2;
@@ -30609,7 +30642,7 @@ function calculateAmounts(invoice) {
   invoice.tax_amount1 = taxAmount1;
   invoice.tax_amount2 = taxAmount2;
   invoice.item_taxes = taxes;
-  
+
   if (NINJA.parseFloat(invoice.partial)) {
     invoice.balance_amount = roundToTwo(invoice.partial);
   } else {
@@ -30934,9 +30967,9 @@ function truncate(string, length){
    }
 };
 
-// Show/hide the 'Select' option in the datalists 
+// Show/hide the 'Select' option in the datalists
 function actionListHandler() {
-    $('tbody tr').mouseover(function() {
+    $('tbody tr .tr-action').closest('tr').mouseover(function() {
         $(this).closest('tr').find('.tr-action').show();
         $(this).closest('tr').find('.tr-status').hide();
     }).mouseout(function() {
@@ -31000,11 +31033,12 @@ function searchData(data, key, fuzzy) {
     }
     cb(matches);
     }
-}; 
+};
 
 function escapeRegExp(str) {
   return str.replace(/[\-\[\]\/\{\}\(\)\*\+\?\.\\\^\$\|]/g, "\\$&");
 }
+
 var NINJA = NINJA || {};
 
 NINJA.TEMPLATES = {
@@ -31020,7 +31054,7 @@ NINJA.TEMPLATES = {
     PHOTO:"10"
 };
 
-function GetPdfMake(invoice, javascript, callback) {    
+function GetPdfMake(invoice, javascript, callback) {
 
     javascript = NINJA.decodeJavascript(invoice, javascript);
 
@@ -31085,27 +31119,42 @@ function GetPdfMake(invoice, javascript, callback) {
             val = NINJA.parseMarkdownText(val, false);
         }
         */
-        
+
         return val;
     }
-
 
     // Add ninja logo to the footer
     var dd = JSON.parse(javascript, jsonCallBack);
     var designId = invoice.invoice_design_id;
-    if (!invoice.features.remove_created_by) {
-        if (designId == NINJA.TEMPLATES.CLEAN || designId == NINJA.TEMPLATES.NORMAL) {
-            dd.footer.columns.push({image: logoImages.imageLogo1, alignment: 'right', width: 130, margin: [0, 0, 0, 0]})
-        } else if (designId == NINJA.TEMPLATES.BOLD) {
-            dd.footer[1].columns.push({image: logoImages.imageLogo2, alignment: 'right', width: 130, margin: [0, -20, 20, 0]})
-        } else if (designId == NINJA.TEMPLATES.MODERN) {
-            dd.footer[1].columns[0].stack.push({image: logoImages.imageLogo3, alignment: 'left', width: 130, margin: [40, 6, 0, 0]});
+    if (!invoice.features.remove_created_by && ! isEdge) {
+        var footer = (typeof dd.footer === 'function') ? dd.footer() : dd.footer;
+        if (footer) {
+            if (footer.hasOwnProperty('columns')) {
+                footer.columns.push({image: logoImages.imageLogo1, alignment: 'right', width: 130, margin: [0, 0, 0, 0]})
+            } else {
+                var foundColumns;
+                for (var i=0; i<footer.length; i++) {
+                    var item = footer[i];
+                    if (item.hasOwnProperty('columns')) {
+                        foundColumns = true;
+                        var columns = item.columns;
+                        if (columns[0].hasOwnProperty('stack')) {
+                            columns[0].stack.push({image: logoImages.imageLogo3, alignment: 'left', width: 130, margin: [40, 6, 0, 0]});
+                        } else {
+                            columns.push({image: logoImages.imageLogo1, alignment: 'right', width: 130, margin: [0, -40, 20, 0]})
+                        }
+                    }
+                }
+                if (!foundColumns) {
+                    footer.push({image: logoImages.imageLogo1, alignment: 'right', width: 130, margin: [0, 0, 10, 10]})
+                }
+            }
         }
     }
-    
+
     // set page size
     dd.pageSize = invoice.account.page_size;
-    
+
     pdfMake.fonts = {}
     fonts = window.invoiceFonts || invoice.invoice_fonts;
 
@@ -31126,15 +31175,15 @@ function GetPdfMake(invoice, javascript, callback) {
             }
         }
     }
-        
+
     if(!dd.defaultStyle)dd.defaultStyle = {font:NINJA.bodyFont};
     else if(!dd.defaultStyle.font)dd.defaultStyle.font = NINJA.bodyFont;
-    
+
     doc = pdfMake.createPdf(dd);
     doc.save = function(fileName) {
         this.download(fileName);
     };
-    
+
     return doc;
 }
 
@@ -31146,21 +31195,21 @@ NINJA.decodeJavascript = function(invoice, javascript)
     // search/replace variables
     var json = {
         'accountName': account.name || ' ',
-        'accountLogo': window.accountLogo || blankImage,
-        'accountDetails': NINJA.accountDetails(invoice), 
+        'accountLogo': ( ! isEdge && window.accountLogo) ? window.accountLogo : blankImage,
+        'accountDetails': NINJA.accountDetails(invoice),
         'accountAddress': NINJA.accountAddress(invoice),
         'invoiceDetails': NINJA.invoiceDetails(invoice),
         'invoiceDetailsHeight': (NINJA.invoiceDetails(invoice).length * 16) + 16,
         'invoiceLineItems': NINJA.invoiceLines(invoice),
         'invoiceLineItemColumns': NINJA.invoiceColumns(invoice),
-        'invoiceDocuments' : NINJA.invoiceDocuments(invoice),
+        'invoiceDocuments' : isEdge ? [] : NINJA.invoiceDocuments(invoice),
         'quantityWidth': NINJA.quantityWidth(invoice),
         'taxWidth': NINJA.taxWidth(invoice),
         'clientDetails': NINJA.clientDetails(invoice),
         'notesAndTerms': NINJA.notesAndTerms(invoice),
         'subtotals': NINJA.subtotals(invoice),
         'subtotalsHeight': (NINJA.subtotals(invoice).length * 16) + 16,
-        'subtotalsWithoutBalance': NINJA.subtotals(invoice, true),        
+        'subtotalsWithoutBalance': NINJA.subtotals(invoice, true),
         'subtotalsBalance': NINJA.subtotalsBalance(invoice),
         'balanceDue': formatMoneyInvoice(invoice.balance_amount, invoice),
         'invoiceFooter': NINJA.invoiceFooter(invoice),
@@ -31188,10 +31237,10 @@ NINJA.decodeJavascript = function(invoice, javascript)
         javascript = javascript.replace(regExp, val);
     }
 
-    // search/replace labels 
+    // search/replace labels
     var regExp = new RegExp('"\\$\\\w*?Label(UC)?(:)?(\\\?)?"', 'g');
-    var matches = javascript.match(regExp);    
-    
+    var matches = javascript.match(regExp);
+
     if (matches) {
         for (var i=0; i<matches.length; i++) {
             var match = matches[i];
@@ -31215,12 +31264,12 @@ NINJA.decodeJavascript = function(invoice, javascript)
                 label = ' ';
             }
             javascript = javascript.replace(match, '"'+label+'"');
-        }        
+        }
     }
 
-    // search/replace values 
+    // search/replace values
     var regExp = new RegExp('"\\$[a-z][\\\w\\\.]*?[Value]?"', 'g');
-    var matches = javascript.match(regExp);    
+    var matches = javascript.match(regExp);
 
     if (matches) {
         for (var i=0; i<matches.length; i++) {
@@ -31236,7 +31285,7 @@ NINJA.decodeJavascript = function(invoice, javascript)
                 field = match.substring(2, match.indexOf('Value'));
             } else {
                 field = match.substring(2, match.length - 1);
-            }            
+            }
             field = toSnakeCase(field);
 
             var value = getDescendantProp(invoice, field) || ' ';
@@ -31343,7 +31392,7 @@ NINJA.invoiceLines = function(invoice) {
     }
     if (invoice.features.invoice_ettings && account.custom_invoice_item_label2) {
         grid[0].push({text: account.custom_invoice_item_label2, style: ['tableHeader', 'custom2TableHeader']});
-    }    
+    }
 
     if (!hideQuantity) {
         grid[0].push({text: invoiceLabels.unit_cost, style: ['tableHeader', 'costTableHeader']});
@@ -31363,11 +31412,11 @@ NINJA.invoiceLines = function(invoice) {
         var qty = NINJA.parseFloat(item.qty) ? roundToTwo(NINJA.parseFloat(item.qty)) + '' : '';
         var notes = item.notes;
         var productKey = item.product_key;
-        var tax1 = '';        
+        var tax1 = '';
         var tax2 = '';
         var custom_value1 = item.custom_value1;
         var custom_value2 = item.custom_value2;
-        
+
         if (showItemTaxes) {
             if (item.tax_name1) {
                 tax1 = parseFloat(item.tax_rate1);
@@ -31396,11 +31445,11 @@ NINJA.invoiceLines = function(invoice) {
         lineTotal = formatMoneyInvoice(lineTotal, invoice);
 
         rowStyle = (i % 2 == 0) ? 'odd' : 'even';
-        
+
         if (invoice.has_product_key) {
             row.push({style:["productKey", rowStyle], text:productKey || ' '}); // product key can be blank when selecting from a datalist
         }
-        row.push({style:["notes", rowStyle], stack:[{text:notes || ' '}]}); 
+        row.push({style:["notes", rowStyle], stack:[{text:notes || ' '}]});
         if (invoice.features.invoice_settings && account.custom_invoice_item_label1) {
             row.push({style:["customValue1", rowStyle], text:custom_value1 || ' '});
         }
@@ -31413,11 +31462,11 @@ NINJA.invoiceLines = function(invoice) {
         }
         if (showItemTaxes) {
             var str = ' ';
-            if (tax1) {
+            if (item.tax_name1) {
                 str += tax1.toString() + '%';
             }
-            if (tax2) {
-                if (tax1) {
+            if (item.tax_name2) {
+                if (item.tax_name1) {
                     str += '  ';
                 }
                 str += tax2.toString() + '%';
@@ -31427,7 +31476,7 @@ NINJA.invoiceLines = function(invoice) {
         row.push({style:["lineTotal", rowStyle], text:lineTotal || ' '});
 
         grid.push(row);
-    }   
+    }
 
     return NINJA.prepareDataTable(grid, 'invoiceItems');
 }
@@ -31436,20 +31485,20 @@ NINJA.invoiceDocuments = function(invoice) {
     if(!invoice.account.invoice_embed_documents)return[];
     var stack = [];
     var stackItem = null;
-    
+
     var j = 0;
     for (var i = 0; i < invoice.documents.length; i++)addDoc(invoice.documents[i]);
-    
+
     if(invoice.expenses){
         for (var i = 0; i < invoice.expenses.length; i++) {
             var expense = invoice.expenses[i];
-            for (var i = 0; i < expense.documents.length; i++)addDoc(expense.documents[i]);        
+            for (var j = 0; j < expense.documents.length; j++)addDoc(expense.documents[j]);
         }
     }
-    
+
     function addDoc(document){
         var path = document.base64;
-        
+
         if(!path)path = 'docs/'+document.public_id+'/'+document.name;
         if(path && (window.pdfMake.vfs[path] || document.base64)){
             // Only embed if we actually have an image for it
@@ -31473,65 +31522,65 @@ NINJA.subtotals = function(invoice, hideBalance)
 
     var account = invoice.account;
     var data = [];
-    data.push([{text: invoiceLabels.subtotal}, {text: formatMoneyInvoice(invoice.subtotal_amount, invoice)}]);
+    data.push([{text: invoiceLabels.subtotal, style: ['subtotalsLabel', 'subtotalLabel']}, {text: formatMoneyInvoice(invoice.subtotal_amount, invoice), style: ['subtotals', 'subtotal']}]);
 
     if (invoice.discount_amount != 0) {
-        data.push([{text: invoiceLabels.discount}, {text: formatMoneyInvoice(invoice.discount_amount, invoice)}]);
+        data.push([{text: invoiceLabels.discount , style: ['subtotalsLabel', 'discountLabel']}, {text: formatMoneyInvoice(invoice.discount_amount, invoice), style: ['subtotals', 'discount']}]);
     }
-    
+
     if (NINJA.parseFloat(invoice.custom_value1) && invoice.custom_taxes1 == '1') {
-        data.push([{text: account.custom_invoice_label1}, {text: formatMoneyInvoice(invoice.custom_value1, invoice)}]);
+        data.push([{text: account.custom_invoice_label1, style: ['subtotalsLabel', 'customTax1Label']}, {text: formatMoneyInvoice(invoice.custom_value1, invoice), style: ['subtotals', 'customTax1']}]);
     }
     if (NINJA.parseFloat(invoice.custom_value2) && invoice.custom_taxes2 == '1') {
-        data.push([{text: account.custom_invoice_label2}, {text: formatMoneyInvoice(invoice.custom_value2, invoice)}]);
+        data.push([{text: account.custom_invoice_label2, style: ['subtotalsLabel', 'customTax2Label']}, {text: formatMoneyInvoice(invoice.custom_value2, invoice), style: ['subtotals', 'customTax2']}]);
     }
 
     for (var key in invoice.item_taxes) {
         if (invoice.item_taxes.hasOwnProperty(key)) {
-            var taxRate = invoice.item_taxes[key];         
+            var taxRate = invoice.item_taxes[key];
             var taxStr = taxRate.name + ' ' + (taxRate.rate*1).toString() + '%';
-            data.push([{text: taxStr}, {text: formatMoneyInvoice(taxRate.amount, invoice)}]);
+            data.push([{text: taxStr, style: ['subtotalsLabel', 'taxLabel']}, {text: formatMoneyInvoice(taxRate.amount, invoice), style: ['subtotals', 'tax']}]);
         }
     }
 
-    if (invoice.tax_amount1) {
+    if (invoice.tax_name1) {
         var taxStr = invoice.tax_name1 + ' ' + (invoice.tax_rate1*1).toString() + '%';
-        data.push([{text: taxStr}, {text: formatMoneyInvoice(invoice.tax_amount1, invoice)}]);        
+        data.push([{text: taxStr, style: ['subtotalsLabel', 'tax1Label']}, {text: formatMoneyInvoice(invoice.tax_amount1, invoice), style: ['subtotals', 'tax1']}]);
     }
-    if (invoice.tax_amount2) {
+    if (invoice.tax_name2) {
         var taxStr = invoice.tax_name2 + ' ' + (invoice.tax_rate2*1).toString() + '%';
-        data.push([{text: taxStr}, {text: formatMoneyInvoice(invoice.tax_amount2, invoice)}]);        
+        data.push([{text: taxStr, style: ['subtotalsLabel', 'tax2Label']}, {text: formatMoneyInvoice(invoice.tax_amount2, invoice), style: ['subtotals', 'tax2']}]);
     }
 
-    if (NINJA.parseFloat(invoice.custom_value1) && invoice.custom_taxes1 != '1') {        
-        data.push([{text: account.custom_invoice_label1}, {text: formatMoneyInvoice(invoice.custom_value1, invoice)}]);
+    if (NINJA.parseFloat(invoice.custom_value1) && invoice.custom_taxes1 != '1') {
+        data.push([{text: account.custom_invoice_label1, style: ['subtotalsLabel', 'custom1Label']}, {text: formatMoneyInvoice(invoice.custom_value1, invoice), style: ['subtotals', 'custom1']}]);
     }
     if (NINJA.parseFloat(invoice.custom_value2) && invoice.custom_taxes2 != '1') {
-        data.push([{text: account.custom_invoice_label2}, {text: formatMoneyInvoice(invoice.custom_value2, invoice)}]);        
-    }    
+        data.push([{text: account.custom_invoice_label2, style: ['subtotalsLabel', 'custom2Label']}, {text: formatMoneyInvoice(invoice.custom_value2, invoice), style: ['subtotals', 'custom2']}]);
+    }
 
     var paid = invoice.amount - invoice.balance;
     if (invoice.account.hide_paid_to_date != '1' || paid) {
-        data.push([{text:invoiceLabels.paid_to_date}, {text:formatMoneyInvoice(paid, invoice)}]);        
+        data.push([{text:invoiceLabels.paid_to_date, style: ['subtotalsLabel', 'paidToDateLabel']}, {text:formatMoneyInvoice(paid, invoice), style: ['subtotals', 'paidToDate']}]);
     }
 
     var isPartial = NINJA.parseFloat(invoice.partial);
-        
+
     if (!hideBalance || isPartial) {
         data.push([
-            { text: invoiceLabels.balance_due, style: [isPartial ? '' : 'balanceDueLabel'] },
-            { text: formatMoneyInvoice(invoice.total_amount, invoice), style: [isPartial ? '' : 'balanceDue'] }
+            { text: invoiceLabels.balance_due, style: ['subtotalsLabel', isPartial ? '' : 'balanceDueLabel'] },
+            { text: formatMoneyInvoice(invoice.total_amount, invoice), style: ['subtotals', isPartial ? '' : 'balanceDue'] }
         ]);
     }
-    
+
     if (!hideBalance) {
         if (isPartial) {
             data.push([
-                { text: invoiceLabels.partial_due, style: ['balanceDueLabel'] },
-                { text: formatMoneyInvoice(invoice.balance_amount, invoice), style: ['balanceDue'] }
+                { text: invoiceLabels.partial_due, style: ['subtotalsLabel', 'balanceDueLabel'] },
+                { text: formatMoneyInvoice(invoice.balance_amount, invoice), style: ['subtotals', 'balanceDue'] }
             ]);
         }
-    }        
+    }
 
     return NINJA.prepareDataPairs(data, 'subtotals');
 }
@@ -31539,8 +31588,8 @@ NINJA.subtotals = function(invoice, hideBalance)
 NINJA.subtotalsBalance = function(invoice) {
     var isPartial = NINJA.parseFloat(invoice.partial);
     return [[
-        {text: isPartial ? invoiceLabels.partial_due : invoiceLabels.balance_due, style:['balanceDueLabel']},
-        {text: formatMoneyInvoice(invoice.balance_amount, invoice), style:['balanceDue']}
+        {text: isPartial ? invoiceLabels.partial_due : invoiceLabels.balance_due, style:['subtotalsLabel', 'balanceDueLabel']},
+        {text: formatMoneyInvoice(invoice.balance_amount, invoice), style:['subtotals', 'balanceDue']}
     ]];
 }
 
@@ -31548,18 +31597,18 @@ NINJA.accountDetails = function(invoice) {
     var account = invoice.account;
     var data = [
         {text:account.name, style: ['accountName']},
-        {text:account.id_number},
-        {text:account.vat_number},
-        {text:account.website},
-        {text:account.work_email},
-        {text:account.work_phone}
+        {text:account.id_number, style: ['idNumber']},
+        {text:account.vat_number, style: ['vatNumber']},
+        {text:account.website, style: ['website']},
+        {text:account.work_email, style: ['email']},
+        {text:account.work_phone, style: ['phone']}
     ];
     return NINJA.prepareDataList(data, 'accountDetails');
 }
 
 NINJA.accountAddress = function(invoice) {
     var account = invoice.account;
-    var cityStatePostal = '';    
+    var cityStatePostal = '';
     if (account.city || account.state || account.postal_code) {
         var swap = account.country && account.country.swap_postal_code;
         cityStatePostal = formatAddress(account.city, account.state, account.postal_code, swap);
@@ -31587,15 +31636,15 @@ NINJA.invoiceDetails = function(invoice) {
         {text: invoice.invoice_number, style: ['invoiceNumber']}
     ],
     [
-        {text: invoiceLabels.po_number},            
+        {text: invoiceLabels.po_number},
         {text: invoice.po_number}
     ],
     [
-        {text:  (invoice.is_quote ? invoiceLabels.quote_date : invoiceLabels.invoice_date)}, 
+        {text:  (invoice.is_quote ? invoiceLabels.quote_date : invoiceLabels.invoice_date)},
         {text: invoice.invoice_date}
     ],
     [
-        {text: (invoice.is_quote ? invoiceLabels.valid_until : invoiceLabels.due_date)}, 
+        {text: (invoice.is_quote ? invoiceLabels.valid_until : invoiceLabels.due_date)},
         {text: invoice.is_recurring ? false : invoice.due_date}
     ]
     ];
@@ -31624,7 +31673,7 @@ NINJA.invoiceDetails = function(invoice) {
             {text: formatMoneyInvoice(invoice.balance_amount, invoice), style: ['invoiceDetailBalanceDue']}
         ])
     }
-    
+
     return NINJA.prepareDataPairs(data, 'invoiceDetails');
 }
 
@@ -31637,7 +31686,7 @@ NINJA.clientDetails = function(invoice) {
     var account = invoice.account;
     var contact = client.contacts[0];
     var clientName = client.name || (contact.first_name || contact.last_name ? (contact.first_name + ' ' + contact.last_name) : contact.email);
-    var clientEmail = client.contacts[0].email == clientName ? '' : client.contacts[0].email; 
+    var clientEmail = client.contacts[0].email == clientName ? '' : client.contacts[0].email;
 
     var cityStatePostal = '';
     if (client.city || client.state || client.postal_code) {
@@ -31683,25 +31732,25 @@ NINJA.prepareDataList = function(oldData, section) {
             newData.push(item);
         }
     }
-    return newData;    
+    return newData;
 }
 
 NINJA.prepareDataTable = function(oldData, section) {
     var newData = [];
     for (var i=0; i<oldData.length; i++) {
-        var row = oldData[i];        
+        var row = oldData[i];
         var newRow = [];
         for (var j=0; j<row.length; j++) {
             var item = NINJA.processItem(row[j], section);
             if (item.text || item.stack) {
                 newRow.push(item);
             }
-        }            
+        }
         if (newRow.length) {
             newData.push(newRow);
         }
     }
-    return newData;    
+    return newData;
 }
 
 NINJA.prepareDataPairs = function(oldData, section) {
@@ -31767,7 +31816,7 @@ NINJA.parseMarkdownStack = function(val)
         if (typeof line === 'string') {
             line = [line];
         }
-        
+
         var regExp = '^\\\* (.*[\r\n|\n|\r]?)';
         var formatter = function(data) {
             return {"ul": [data.text]};
@@ -31775,7 +31824,7 @@ NINJA.parseMarkdownStack = function(val)
 
         val = NINJA.parseRegExp(line, regExp, formatter, false);
     }
-    
+
     return val;
 }
 */
@@ -31784,7 +31833,7 @@ NINJA.parseRegExp = function(val, regExpStr, formatter, groupText)
 {
     var regExp = new RegExp(regExpStr, 'gm');
     var parts = [];
-    
+
     for (var i=0; i<val.length; i++) {
         var line = val[i];
         parts = parts.concat(NINJA.parseRegExpLine(line, regExp, formatter, groupText));
@@ -31797,7 +31846,7 @@ NINJA.parseRegExpLine = function(line, regExp, formatter, groupText)
 {
     var parts = [];
     var lastIndex = 0;
-    
+
     while (match = regExp.exec(line)) {
         if (match.index > lastIndex) {
             parts.push(line.substring(lastIndex, match.index));

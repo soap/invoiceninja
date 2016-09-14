@@ -1,11 +1,16 @@
 <?php namespace App\Listeners;
 
-use Log;
 use Utils;
 use App\Events\PaymentWasCreated;
 
+/**
+ * Class AnalyticsListener
+ */
 class AnalyticsListener
 {
+    /**
+     * @param PaymentWasCreated $event
+     */
     public function trackRevenue(PaymentWasCreated $event)
     {
         if ( ! Utils::isNinja() || ! env('ANALYTICS_KEY')) {
@@ -23,21 +28,23 @@ class AnalyticsListener
         $analyticsId = env('ANALYTICS_KEY');
         $client = $payment->client;
         $amount = $payment->amount;
+        $item = $invoice->invoice_items->last()->product_key;
 
         $base = "v=1&tid={$analyticsId}&cid={$client->public_id}&cu=USD&ti={$invoice->invoice_number}";
 
         $url = $base . "&t=transaction&ta=ninja&tr={$amount}";
         $this->sendAnalytics($url);
-        //Log::info($url);
 
-        $url = $base . "&t=item&in=plan&ip={$amount}&iq=1";
+        $url = $base . "&t=item&in={$item}&ip={$amount}&iq=1";
         $this->sendAnalytics($url);
-        //Log::info($url);
     }
 
+    /**
+     * @param $data
+     */
     private function sendAnalytics($data)
     {
-        $data = json_encode($data);
+        $data = utf8_encode($data);
         $curl = curl_init();
 
         $opts = [
@@ -48,7 +55,7 @@ class AnalyticsListener
         ];
 
         curl_setopt_array($curl, $opts);
-        $response = curl_exec($curl);
+        curl_exec($curl);
         curl_close($curl);
     }
 }

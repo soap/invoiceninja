@@ -1,6 +1,5 @@
 <?php namespace App\Ninja\Mailers;
 
-use Utils;
 
 use App\Models\Invitation;
 use App\Models\Invoice;
@@ -9,6 +8,10 @@ use App\Models\User;
 
 class UserMailer extends Mailer
 {
+    /**
+     * @param User $user
+     * @param User|null $invitor
+     */
     public function sendConfirmation(User $user, User $invitor = null)
     {
         if (!$user->email) {
@@ -34,7 +37,18 @@ class UserMailer extends Mailer
         $this->sendTo($user->email, $fromEmail, $fromName, $subject, $view, $data);
     }
 
-    public function sendNotification(User $user, Invoice $invoice, $notificationType, Payment $payment = null)
+    /**
+     * @param User $user
+     * @param Invoice $invoice
+     * @param $notificationType
+     * @param Payment|null $payment
+     */
+    public function sendNotification(
+        User $user,
+        Invoice $invoice,
+        $notificationType,
+        Payment $payment = null
+    )
     {
         if (! $user->email || $user->cannot('view', $invoice)) {
             return;
@@ -57,6 +71,7 @@ class UserMailer extends Mailer
         ];
 
         if ($payment) {
+            $data['payment'] = $payment;
             $data['paymentAmount'] = $account->formatMoney($payment->amount, $client);
         }
 
@@ -68,6 +83,9 @@ class UserMailer extends Mailer
         $this->sendTo($user->email, CONTACT_EMAIL, CONTACT_NAME, $subject, $view, $data);
     }
 
+    /**
+     * @param Invitation $invitation
+     */
     public function sendEmailBounced(Invitation $invitation)
     {
         $user = $invitation->user;
@@ -87,6 +105,22 @@ class UserMailer extends Mailer
             'entityType' => $entityType,
             'contactName' => $invitation->contact->getDisplayName(),
             'invoiceNumber' => $invoice->invoice_number,
+        ];
+
+        $this->sendTo($user->email, CONTACT_EMAIL, CONTACT_NAME, $subject, $view, $data);
+    }
+
+    public function sendSecurityCode($user, $code)
+    {
+        if (!$user->email) {
+            return;
+        }
+
+        $subject = trans('texts.security_code_email_subject');
+        $view = 'security_code';
+        $data = [
+            'userName' => $user->getDisplayName(),
+            'code' => $code,
         ];
 
         $this->sendTo($user->email, CONTACT_EMAIL, CONTACT_NAME, $subject, $view, $data);

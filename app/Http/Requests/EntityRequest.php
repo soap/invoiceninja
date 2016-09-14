@@ -1,6 +1,5 @@
 <?php namespace App\Http\Requests;
 
-use App\Http\Requests\Request;
 use Input;
 use Utils;
 
@@ -17,10 +16,14 @@ class EntityRequest extends Request {
 
         // The entity id can appear as invoices, invoice_id, public_id or id
         $publicId = false;
-        foreach (['_id', 's'] as $suffix) {
-            $field = $this->entityType . $suffix;
-            if ($this->$field) {
-                $publicId= $this->$field;
+        $field = $this->entityType . '_id';
+        if ( ! empty($this->$field)) {
+            $publicId = $this->$field;
+        }
+        if ( ! $publicId) {
+            $field = Utils::pluralizeEntityType($this->entityType);
+            if ( ! empty($this->$field)) {
+                $publicId = $this->$field;
             }
         }
         if ( ! $publicId) {
@@ -31,14 +34,19 @@ class EntityRequest extends Request {
         }
 
         $class = Utils::getEntityClass($this->entityType);
-        
-        if (method_exists($class, 'withTrashed')) {
+
+        if (method_exists($class, 'trashed')) {
             $this->entity = $class::scope($publicId)->withTrashed()->firstOrFail();
         } else {
             $this->entity = $class::scope($publicId)->firstOrFail();
         }
 
         return $this->entity;
+    }
+
+    public function setEntity($entity)
+    {
+        $this->entity = $entity;
     }
 
     public function authorize()
