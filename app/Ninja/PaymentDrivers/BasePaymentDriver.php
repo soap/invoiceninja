@@ -540,16 +540,16 @@ class BasePaymentDriver
         $paymentMethod->setRelation('account_gateway_token', $customer);
         $paymentMethod = $this->creatingPaymentMethod($paymentMethod);
 
-        // archive the old payment method
-        $oldPaymentMethod = PaymentMethod::clientId($this->client()->id)
-            ->wherePaymentTypeId($paymentMethod->payment_type_id)
-            ->first();
-
-        if ($oldPaymentMethod) {
-            $oldPaymentMethod->delete();
-        }
-
         if ($paymentMethod) {
+            // archive the old payment method
+            $oldPaymentMethod = PaymentMethod::clientId($this->client()->id)
+                ->wherePaymentTypeId($paymentMethod->payment_type_id)
+                ->first();
+
+            if ($oldPaymentMethod) {
+                $oldPaymentMethod->delete();
+            }
+
             $paymentMethod->save();
         }
 
@@ -606,8 +606,12 @@ class BasePaymentDriver
                     $term = strtolower($matches[2]);
                     $price = $invoice_item->cost;
                     if ($plan == PLAN_ENTERPRISE) {
-                        preg_match('/###[\d] [\w]* (\d*)/', $invoice_item->notes, $matches);
-                        $numUsers = $matches[1];
+                        preg_match('/###[\d] [\w]* (\d*)/', $invoice_item->notes, $numUserMatches);
+                        if (count($numUserMatches)) {
+                            $numUsers = $numUserMatches[1];
+                        } else {
+                            $numUsers = 5;
+                        }
                     } else {
                         $numUsers = 1;
                     }

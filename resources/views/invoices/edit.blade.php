@@ -263,7 +263,7 @@
 				</td>
 				<td>
 					<textarea data-bind="value: wrapped_notes, valueUpdate: 'afterkeydown', attr: {name: 'invoice_items[' + $index() + '][notes]'}"
-                        rows="1" cols="60" style="resize: vertical" class="form-control word-wrap"></textarea>
+                        rows="1" cols="60" style="resize: vertical;height:42px" class="form-control word-wrap"></textarea>
                         <input type="text" data-bind="value: task_public_id, attr: {name: 'invoice_items[' + $index() + '][task_public_id]'}" style="display: none"/>
 						<input type="text" data-bind="value: expense_public_id, attr: {name: 'invoice_items[' + $index() + '][expense_public_id]'}" style="display: none"/>
 				</td>
@@ -857,29 +857,29 @@
                 model.invoice().has_tasks(true);
             @endif
 
-            if(model.invoice().expenses().length && !model.invoice().public_id()){
+            @if (isset($expenses) && $expenses)
                 model.expense_currency_id({{ isset($expenseCurrencyId) ? $expenseCurrencyId : 0 }});
 
                 // move the blank invoice line item to the end
                 var blank = model.invoice().invoice_items.pop();
-                var expenses = model.invoice().expenses();
+                var expenses = {!! $expenses !!}
 
                 for (var i=0; i<expenses.length; i++) {
                     var expense = expenses[i];
                     var item = model.invoice().addItem();
-                    item.product_key(expense.expense_category ? expense.expense_category.name() : '');
-                    item.notes(expense.public_notes());
+                    item.product_key(expense.expense_category ? expense.expense_category.name : '');
+                    item.notes(expense.public_notes);
                     item.qty(1);
-                    item.expense_public_id(expense.public_id());
-					item.cost(expense.converted_amount());
-                    item.tax_rate1(expense.tax_rate1());
-                    item.tax_name1(expense.tax_name1());
-                    item.tax_rate2(expense.tax_rate2());
-                    item.tax_name2(expense.tax_name2());
+                    item.expense_public_id(expense.public_id);
+					item.cost(expense.converted_amount);
+                    item.tax_rate1(expense.tax_rate1);
+                    item.tax_name1(expense.tax_name1);
+                    item.tax_rate2(expense.tax_rate2);
+                    item.tax_name2(expense.tax_name2);
                 }
                 model.invoice().invoice_items.push(blank);
                 model.invoice().has_expenses(true);
-            }
+            @endif
 
         @endif
 
@@ -1108,9 +1108,7 @@
         });
 
         $('textarea').on('keyup focus', function(e) {
-            while($(this).outerHeight() < this.scrollHeight + parseFloat($(this).css("borderTopWidth")) + parseFloat($(this).css("borderBottomWidth"))) {
-                $(this).height($(this).height()+1);
-            };
+            $(this).height(0).height(this.scrollHeight-18);
         });
 	}
 
@@ -1229,8 +1227,7 @@
         if (!isEmailValid()) {
             swal("{!! trans('texts.provide_email') !!}");
             return;
-8       }
-
+        }
 
 		sweetConfirm(function() {
             var accountLanguageId = parseInt({{ $account->language_id ?: '0' }});
@@ -1318,6 +1315,12 @@
             swal("{!! trans('texts.wait_for_upload') !!}");
             return false;
         }
+
+        @if ($invoice->trashed())
+            if ($('#bulk_action').val() != 'restore') {
+                return false;
+            }
+        @endif
 
         // check invoice number is unique
         if ($('.invoice-number').hasClass('has-error')) {
@@ -1469,6 +1472,8 @@
 		if (!hasEmpty) {
 			model.invoice().addItem();
 		}
+
+        //NINJA.formIsChanged = true;
 	}
 
     function onPartialChange(silent)
