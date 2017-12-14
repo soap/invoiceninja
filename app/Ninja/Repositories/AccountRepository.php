@@ -2,9 +2,9 @@
 
 use Auth;
 use Request;
+use Input;
 use Session;
 use Utils;
-use DB;
 use URL;
 use stdClass;
 use Validator;
@@ -14,6 +14,7 @@ use App\Models\Invitation;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Client;
+use App\Models\Credit;
 use App\Models\Language;
 use App\Models\Contact;
 use App\Models\Account;
@@ -27,6 +28,11 @@ class AccountRepository
     public function create($firstName = '', $lastName = '', $email = '', $password = '')
     {
         $company = new Company();
+        $company->utm_source = Input::get('utm_source');
+        $company->utm_medium = Input::get('utm_medium');
+        $company->utm_campaign = Input::get('utm_campaign');
+        $company->utm_term = Input::get('utm_term');
+        $company->utm_content = Input::get('utm_content');
         $company->save();
 
         $account = new Account();
@@ -119,7 +125,7 @@ class AccountRepository
             if ($client->name) {
                 $data['clients'][] = [
                     'value' => $client->name,
-                    'tokens' => $client->name,
+                    'tokens' => implode(',', [$client->name, $client->id_number, $client->vat_number, $client->work_phone]),
                     'url' => $client->present()->url,
                 ];
             }
@@ -140,27 +146,18 @@ class AccountRepository
             }
 
             foreach ($client->contacts as $contact) {
-                if ($contact->getFullName()) {
-                    $data['contacts'][] = [
-                        'value' => $contact->getDisplayName(),
-                        'tokens' => $contact->getDisplayName(),
-                        'url' => $client->present()->url,
-                    ];
-                }
-                if ($contact->email) {
-                    $data['contacts'][] = [
-                        'value' => $contact->email,
-                        'tokens' => $contact->email,
-                        'url' => $client->present()->url,
-                    ];
-                }
+                $data['contacts'][] = [
+                    'value' => $contact->getDisplayName(),
+                    'tokens' => implode(',', [$contact->first_name, $contact->last_name, $contact->email, $contact->phone]),
+                    'url' => $client->present()->url,
+                ];
             }
 
             foreach ($client->invoices as $invoice) {
                 $entityType = $invoice->getEntityType();
                 $data["{$entityType}s"][] = [
                     'value' => $invoice->getDisplayName() . ': ' . $client->getDisplayName(),
-                    'tokens' => $invoice->getDisplayName() . ': ' . $client->getDisplayName(),
+                    'tokens' => implode(',', [$invoice->invoice_number, $invoice->po_number]),
                     'url' => $invoice->present()->url,
                 ];
             }
@@ -177,20 +174,22 @@ class AccountRepository
             ENTITY_QUOTE,
             ENTITY_TASK,
             ENTITY_EXPENSE,
+            ENTITY_EXPENSE_CATEGORY,
             ENTITY_VENDOR,
             ENTITY_RECURRING_INVOICE,
             ENTITY_PAYMENT,
-            ENTITY_CREDIT
+            ENTITY_CREDIT,
+            ENTITY_PROJECT,
         ];
 
         foreach ($entityTypes as $entityType) {
             $features[] = [
                 "new_{$entityType}",
-                "/{$entityType}s/create",
+                Utils::pluralizeEntityType($entityType) . '/create'
             ];
             $features[] = [
-                "list_{$entityType}s",
-                "/{$entityType}s",
+                'list_' . Utils::pluralizeEntityType($entityType),
+                Utils::pluralizeEntityType($entityType)
             ];
         }
 
@@ -202,6 +201,8 @@ class AccountRepository
             ['new_user', '/users/create'],
             ['custom_fields', '/settings/invoice_settings'],
             ['invoice_number', '/settings/invoice_settings'],
+            ['buy_now_buttons', '/settings/client_portal#buy_now'],
+            ['invoice_fields', '/settings/invoice_design#invoice_fields'],
         ]);
 
         $settings = array_merge(Account::$basicSettings, Account::$advancedSettings);
@@ -228,34 +229,69 @@ class AccountRepository
         return $data;
     }
 
-    public function enablePlan($plan = PLAN_PRO, $term = PLAN_TERM_MONTHLY, $credit = 0, $pending_monthly = false)
+    public function enablePlan($plan, $credit = 0)
     {
         $account = Auth::user()->account;
         $client = $this->getNinjaClient($account);
-        $invitation = $this->createNinjaInvoice($client, $account, $plan, $term, $credit, $pending_monthly);
+        $invitation = $this->createNinjaInvoice($client, $account, $plan, $credit);
 
         return $invitation;
     }
 
-    public function createNinjaInvoice($client, $clientAccount, $plan = PLAN_PRO, $term = PLAN_TERM_MONTHLY, $credit = 0, $pending_monthly = false)
+    public function createNinjaCredit($client, $amount)
     {
+        $account = $this->getNinjaAccount();
+
+        $lastCredit = Credit::withTrashed()->whereAccountId($account->id)->orderBy('public_id', 'DESC')->first();
+        $publicId = $lastCredit ? ($lastCredit->public_id + 1) : 1;
+
+        $credit = new Credit();
+        $credit->public_id = $publicId;
+        $credit->account_id = $account->id;
+        $credit->user_id = $account->users()->first()->id;
+        $credit->client_id = $client->id;
+        $credit->amount = $amount;
+        $credit->save();
+
+        return $credit;
+    }
+
+    public function createNinjaInvoice($client, $clientAccount, $plan, $credit = 0)
+    {
+        $term = $plan['term'];
+        $plan_cost = $plan['price'];
+        $num_users = $plan['num_users'];
+        $plan = $plan['plan'];
+
         if ($credit < 0) {
             $credit = 0;
         }
 
-        $plan_cost = Account::$plan_prices[$plan][$term];
-
         $account = $this->getNinjaAccount();
         $lastInvoice = Invoice::withTrashed()->whereAccountId($account->id)->orderBy('public_id', 'DESC')->first();
+        $renewalDate = $clientAccount->getRenewalDate();
         $publicId = $lastInvoice ? ($lastInvoice->public_id + 1) : 1;
+
         $invoice = new Invoice();
+        $invoice->is_public = true;
         $invoice->account_id = $account->id;
         $invoice->user_id = $account->users()->first()->id;
         $invoice->public_id = $publicId;
         $invoice->client_id = $client->id;
         $invoice->invoice_number = $account->getNextInvoiceNumber($invoice);
-        $invoice->invoice_date = $clientAccount->getRenewalDate();
+        $invoice->invoice_date = $renewalDate->format('Y-m-d');
         $invoice->amount = $invoice->balance = $plan_cost - $credit;
+        $invoice->invoice_type_id = INVOICE_TYPE_STANDARD;
+
+        // check for promo/discount
+        $clientCompany = $clientAccount->company;
+        if ($clientCompany->hasActivePromo() || $clientCompany->hasActiveDiscount($renewalDate)) {
+            $discount = $invoice->amount * $clientCompany->discount;
+            $invoice->discount = $clientCompany->discount * 100;
+            $invoice->amount -= $discount;
+            $invoice->balance -= $discount;
+        }
+
         $invoice->save();
 
         if ($credit) {
@@ -272,22 +308,14 @@ class AccountRepository
         $item->cost = $plan_cost;
         $item->notes = trans("texts.{$plan}_plan_{$term}_description");
 
+        if ($plan == PLAN_ENTERPRISE) {
+            $min = Utils::getMinNumUsers($num_users);
+            $item->notes .= "\n\n###" . trans('texts.min_to_max_users', ['min' => $min, 'max' => $num_users]);
+        }
+
         // Don't change this without updating the regex in PaymentService->createPayment()
         $item->product_key = 'Plan - '.ucfirst($plan).' ('.ucfirst($term).')';
         $invoice->invoice_items()->save($item);
-
-        if ($pending_monthly) {
-            $term_end = $term == PLAN_MONTHLY ? date_create('+1 month') : date_create('+1 year');
-            $pending_monthly_item = InvoiceItem::createNew($invoice);
-            $item->qty = 1;
-            $pending_monthly_item->cost = 0;
-            $pending_monthly_item->notes = trans("texts.plan_pending_monthly", array('date', Utils::dateToString($term_end)));
-
-            // Don't change this without updating the text in PaymentService->createPayment()
-            $pending_monthly_item->product_key = 'Pending Monthly';
-            $invoice->invoice_items()->save($pending_monthly_item);
-        }
-
 
         $invitation = new Invitation();
         $invitation->account_id = $account->id;

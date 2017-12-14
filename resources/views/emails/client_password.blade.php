@@ -8,7 +8,7 @@
     <div>
         <center>
             @include('partials.email_button', [
-                'link' => URL::to("client/password/reset/".session('invitation_key')."/{$token}"),
+                'link' => URL::to("client/password/reset/".session('contact_key')."/{$token}"),
                 'field' => 'reset',
                 'color' => '#36c157',
             ])
@@ -21,6 +21,6 @@
     </div>
     &nbsp;
     <div>
-        {{ trans('texts.reset_password_footer', ['email' => CONTACT_EMAIL]) }}
+        {{ trans('texts.reset_password_footer', ['email' => env('CONTACT_EMAIL', CONTACT_EMAIL)]) }}
     </div>
 @stop

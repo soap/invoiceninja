@@ -2,10 +2,8 @@
 
 use DB;
 use Cache;
-use App\Ninja\Repositories\BaseRepository;
 use App\Models\Client;
 use App\Models\Contact;
-use App\Models\Activity;
 use App\Events\ClientWasCreated;
 use App\Events\ClientWasUpdated;
 
@@ -33,9 +31,11 @@ class ClientRepository extends BaseRepository
                     ->where('clients.account_id', '=', \Auth::user()->account_id)
                     ->where('contacts.is_primary', '=', true)
                     ->where('contacts.deleted_at', '=', null)
+                    //->whereRaw('(clients.name != "" or contacts.first_name != "" or contacts.last_name != "" or contacts.email != "")') // filter out buy now invoices
                     ->select(
                         DB::raw('COALESCE(clients.currency_id, accounts.currency_id) currency_id'),
                         DB::raw('COALESCE(clients.country_id, accounts.country_id) country_id'),
+                        DB::raw("CONCAT(contacts.first_name, ' ', contacts.last_name) contact"),
                         'clients.public_id',
                         'clients.name',
                         'contacts.first_name',
@@ -43,6 +43,7 @@ class ClientRepository extends BaseRepository
                         'clients.balance',
                         'clients.last_login',
                         'clients.created_at',
+                        'clients.created_at as client_created_at',
                         'clients.work_phone',
                         'contacts.email',
                         'clients.deleted_at',
@@ -50,9 +51,7 @@ class ClientRepository extends BaseRepository
                         'clients.user_id'
                     );
 
-        if (!\Session::get('show_trash:client')) {
-            $query->where('clients.deleted_at', '=', null);
-        }
+        $this->applyFilters($query, ENTITY_CLIENT);
 
         if ($filter) {
             $query->where(function ($query) use ($filter) {
@@ -80,7 +79,10 @@ class ClientRepository extends BaseRepository
             $client = Client::createNew();
         } else {
             $client = Client::scope($publicId)->with('contacts')->firstOrFail();
-            \Log::warning('Entity not set in client repo save');
+        }
+
+        if ($client->is_deleted) {
+            return $client;
         }
 
         // convert currency code to id
@@ -109,7 +111,11 @@ class ClientRepository extends BaseRepository
 
         // If the primary is set ensure it's listed first
         usort($contacts, function ($left, $right) {
-            return (isset($right['is_primary']) ? $right['is_primary'] : 1) - (isset($left['is_primary']) ? $left['is_primary'] : 0);
+            if (isset($right['is_primary']) && isset($left['is_primary'])) {
+                return $right['is_primary'] - $left['is_primary'];
+            } else {
+                return 0;
+            }
         });
 
         foreach ($contacts as $contact) {
@@ -118,9 +124,11 @@ class ClientRepository extends BaseRepository
             $first = false;
         }
 
-        foreach ($client->contacts as $contact) {
-            if (!in_array($contact->public_id, $contactIds)) {
-                $contact->delete();
+        if ( ! $client->wasRecentlyCreated) {
+            foreach ($client->contacts as $contact) {
+                if (!in_array($contact->public_id, $contactIds)) {
+                    $contact->delete();
+                }
             }
         }
 
@@ -132,4 +140,48 @@ class ClientRepository extends BaseRepository
 
         return $client;
     }
+
+    public function findPhonetically($clientName)
+    {
+        $clientNameMeta = metaphone($clientName);
+
+        $map = [];
+        $max = SIMILAR_MIN_THRESHOLD;
+        $clientId = 0;
+
+        $clients = Client::scope()->get(['id', 'name', 'public_id']);
+
+        foreach ($clients as $client) {
+            $map[$client->id] = $client;
+
+            if ( ! $client->name) {
+                continue;
+            }
+
+            $similar = similar_text($clientNameMeta, metaphone($client->name), $percent);
+
+            if ($percent > $max) {
+                $clientId = $client->id;
+                $max = $percent;
+            }
+        }
+
+        $contacts = Contact::scope()->get(['client_id', 'first_name', 'last_name', 'public_id']);
+
+        foreach ($contacts as $contact) {
+            if ( ! $contact->getFullName() || ! isset($map[$contact->client_id])) {
+                continue;
+            }
+
+            $similar = similar_text($clientNameMeta, metaphone($contact->getFullName()), $percent);
+
+            if ($percent > $max) {
+                $clientId = $contact->client_id;
+                $max = $percent;
+            }
+        }
+
+        return ($clientId && isset($map[$clientId])) ? $map[$clientId] : null;
+    }
+
 }

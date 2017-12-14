@@ -2,22 +2,36 @@
 
 use Utils;
 
-class ExpensePresenter extends EntityPresenter {
+/**
+ * Class ExpensePresenter
+ */
+class ExpensePresenter extends EntityPresenter
+{
 
-    // Expenses
+    /**
+     * @return string
+     */
     public function vendor()
     {
         return $this->entity->vendor ? $this->entity->vendor->getDisplayName() : '';
     }
 
+    /**
+     * @return \DateTime|string
+     */
     public function expense_date()
     {
         return Utils::fromSqlDate($this->entity->expense_date);
     }
 
-    public function invoiced_amount()
+    public function amount()
     {
-        return $this->entity->invoice_id ? $this->entity->convertedAmount() : 0;
+        return Utils::formatMoney($this->entity->amount, $this->entity->expense_currency_id);
     }
-    
+
+    public function category()
+    {
+        return $this->entity->expense_category ? $this->entity->expense_category->name : '';
+    }
+
 }

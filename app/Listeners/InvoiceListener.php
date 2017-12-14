@@ -2,7 +2,6 @@
 
 use Utils;
 use Auth;
-use App\Events\InvoiceWasEmailed;
 use App\Events\InvoiceWasUpdated;
 use App\Events\InvoiceWasCreated;
 use App\Events\PaymentWasCreated;
@@ -13,8 +12,14 @@ use App\Events\PaymentWasVoided;
 use App\Events\PaymentFailed;
 use App\Events\InvoiceInvitationWasViewed;
 
+/**
+ * Class InvoiceListener
+ */
 class InvoiceListener
 {
+    /**
+     * @param InvoiceWasCreated $event
+     */
     public function createdInvoice(InvoiceWasCreated $event)
     {
         if (Utils::hasFeature(FEATURE_DIFFERENT_DESIGNS)) {
@@ -34,18 +39,27 @@ class InvoiceListener
         }
     }
 
+    /**
+     * @param InvoiceWasUpdated $event
+     */
     public function updatedInvoice(InvoiceWasUpdated $event)
     {
         $invoice = $event->invoice;
         $invoice->updatePaidStatus(false);
     }
 
+    /**
+     * @param InvoiceInvitationWasViewed $event
+     */
     public function viewedInvoice(InvoiceInvitationWasViewed $event)
     {
         $invitation = $event->invitation;
         $invitation->markViewed();
     }
 
+    /**
+     * @param PaymentWasCreated $event
+     */
     public function createdPayment(PaymentWasCreated $event)
     {
         $payment = $event->payment;
@@ -57,16 +71,22 @@ class InvoiceListener
         $invoice->updatePaidStatus();
     }
 
+    /**
+     * @param PaymentWasDeleted $event
+     */
     public function deletedPayment(PaymentWasDeleted $event)
     {
         $payment = $event->payment;
         $invoice = $payment->invoice;
-        $adjustment = $payment->amount - $payment->refunded;
+        $adjustment = $payment->getCompletedAmount();
 
         $invoice->updateBalances($adjustment);
         $invoice->updatePaidStatus();
     }
 
+    /**
+     * @param PaymentWasRefunded $event
+     */
     public function refundedPayment(PaymentWasRefunded $event)
     {
         $payment = $event->payment;
@@ -77,6 +97,9 @@ class InvoiceListener
         $invoice->updatePaidStatus();
     }
 
+    /**
+     * @param PaymentWasVoided $event
+     */
     public function voidedPayment(PaymentWasVoided $event)
     {
         $payment = $event->payment;
@@ -87,16 +110,22 @@ class InvoiceListener
         $invoice->updatePaidStatus();
     }
 
+    /**
+     * @param PaymentFailed $event
+     */
     public function failedPayment(PaymentFailed $event)
     {
         $payment = $event->payment;
         $invoice = $payment->invoice;
-        $adjustment = $payment->amount - $payment->refunded;
+        $adjustment = $payment->getCompletedAmount();
 
         $invoice->updateBalances($adjustment);
         $invoice->updatePaidStatus();
     }
 
+    /**
+     * @param PaymentWasRestored $event
+     */
     public function restoredPayment(PaymentWasRestored $event)
     {
         if ( ! $event->fromDeleted) {
@@ -105,7 +134,7 @@ class InvoiceListener
 
         $payment = $event->payment;
         $invoice = $payment->invoice;
-        $adjustment = ($payment->amount - $payment->refunded) * -1;
+        $adjustment = $payment->getCompletedAmount() * -1;
 
         $invoice->updateBalances($adjustment);
         $invoice->updatePaidStatus();

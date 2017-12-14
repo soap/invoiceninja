@@ -7,33 +7,40 @@ use DateTime;
 use Event;
 use Cache;
 use App;
-use File;
-use App\Models\Document;
+use Carbon;
 use App\Events\UserSettingsChanged;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Laracasts\Presenter\PresentableTrait;
+use App\Models\Traits\PresentsInvoice;
 
+/**
+ * Class Account
+ */
 class Account extends Eloquent
 {
     use PresentableTrait;
     use SoftDeletes;
+    use PresentsInvoice;
 
-    public static $plan_prices = array(
-        PLAN_PRO => array(
-            PLAN_TERM_MONTHLY => PLAN_PRICE_PRO_MONTHLY,
-            PLAN_TERM_YEARLY => PLAN_PRICE_PRO_YEARLY,
-        ),
-        PLAN_ENTERPRISE => array(
-            PLAN_TERM_MONTHLY => PLAN_PRICE_ENTERPRISE_MONTHLY,
-            PLAN_TERM_YEARLY => PLAN_PRICE_ENTERPRISE_YEARLY,
-        ),
-    );
-
+    /**
+     * @var string
+     */
     protected $presenter = 'App\Ninja\Presenters\AccountPresenter';
+
+    /**
+     * @var array
+     */
     protected $dates = ['deleted_at'];
+
+    /**
+     * @var array
+     */
     protected $hidden = ['ip'];
 
+    /**
+     * @var array
+     */
     protected $fillable = [
         'name',
         'id_number',
@@ -61,14 +68,28 @@ class Account extends Eloquent
         'show_item_taxes',
         'default_tax_rate_id',
         'enable_second_tax_rate',
+        'include_item_taxes_inline',
+        'start_of_week',
+        'financial_year_start',
+        'enable_client_portal',
+        'enable_client_portal_dashboard',
+        'enable_portal_password',
+        'send_portal_password',
+        'enable_buy_now_buttons',
+        'show_accept_invoice_terms',
+        'show_accept_quote_terms',
+        'require_invoice_signature',
+        'require_quote_signature',
     ];
 
+    /**
+     * @var array
+     */
     public static $basicSettings = [
         ACCOUNT_COMPANY_DETAILS,
         ACCOUNT_USER_DETAILS,
         ACCOUNT_LOCALIZATION,
         ACCOUNT_PAYMENTS,
-        ACCOUNT_BANKS,
         ACCOUNT_TAX_RATES,
         ACCOUNT_PRODUCTS,
         ACCOUNT_NOTIFICATIONS,
@@ -76,145 +97,249 @@ class Account extends Eloquent
         ACCOUNT_MANAGEMENT,
     ];
 
+    /**
+     * @var array
+     */
     public static $advancedSettings = [
         ACCOUNT_INVOICE_SETTINGS,
         ACCOUNT_INVOICE_DESIGN,
+        ACCOUNT_CLIENT_PORTAL,
         ACCOUNT_EMAIL_SETTINGS,
         ACCOUNT_TEMPLATES_AND_REMINDERS,
-        ACCOUNT_CLIENT_PORTAL,
-        ACCOUNT_CHARTS_AND_REPORTS,
+        ACCOUNT_BANKS,
+        ACCOUNT_REPORTS,
         ACCOUNT_DATA_VISUALIZATIONS,
-        ACCOUNT_USER_MANAGEMENT,
         ACCOUNT_API_TOKENS,
+        ACCOUNT_USER_MANAGEMENT,
     ];
 
-    /*
-    protected $casts = [
-        'invoice_settings' => 'object',
+    public static $modules = [
+        ENTITY_RECURRING_INVOICE => 1,
+        ENTITY_CREDIT => 2,
+        ENTITY_QUOTE => 4,
+        ENTITY_TASK => 8,
+        ENTITY_EXPENSE => 16,
+        ENTITY_VENDOR => 32,
     ];
-    */
+
+    public static $dashboardSections = [
+        'total_revenue' => 1,
+        'average_invoice' => 2,
+        'outstanding' => 4,
+    ];
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function account_tokens()
     {
         return $this->hasMany('App\Models\AccountToken');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function users()
     {
         return $this->hasMany('App\Models\User');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function clients()
     {
         return $this->hasMany('App\Models\Client');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function contacts()
     {
         return $this->hasMany('App\Models\Contact');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function invoices()
     {
         return $this->hasMany('App\Models\Invoice');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function account_gateways()
     {
         return $this->hasMany('App\Models\AccountGateway');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function bank_accounts()
     {
         return $this->hasMany('App\Models\BankAccount');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function tax_rates()
     {
         return $this->hasMany('App\Models\TaxRate');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function products()
     {
         return $this->hasMany('App\Models\Product');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function country()
     {
         return $this->belongsTo('App\Models\Country');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function timezone()
     {
         return $this->belongsTo('App\Models\Timezone');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function language()
     {
         return $this->belongsTo('App\Models\Language');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function date_format()
     {
         return $this->belongsTo('App\Models\DateFormat');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function datetime_format()
     {
         return $this->belongsTo('App\Models\DatetimeFormat');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function size()
     {
         return $this->belongsTo('App\Models\Size');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function currency()
     {
         return $this->belongsTo('App\Models\Currency');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function industry()
     {
         return $this->belongsTo('App\Models\Industry');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function default_tax_rate()
     {
         return $this->belongsTo('App\Models\TaxRate');
     }
 
+    /**
+     * @return mixed
+     */
     public function expenses()
     {
         return $this->hasMany('App\Models\Expense','account_id','id')->withTrashed();
     }
 
+    /**
+     * @return mixed
+     */
     public function payments()
     {
         return $this->hasMany('App\Models\Payment','account_id','id')->withTrashed();
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function company()
     {
         return $this->belongsTo('App\Models\Company');
     }
 
+    /**
+     * @return mixed
+     */
+    public function expense_categories()
+    {
+        return $this->hasMany('App\Models\ExpenseCategory','account_id','id')->withTrashed();
+    }
+
+    /**
+     * @return mixed
+     */
+    public function projects()
+    {
+        return $this->hasMany('App\Models\Project','account_id','id')->withTrashed();
+    }
+
+    /**
+     * @param $value
+     */
     public function setIndustryIdAttribute($value)
     {
         $this->attributes['industry_id'] = $value ?: null;
     }
 
+    /**
+     * @param $value
+     */
     public function setCountryIdAttribute($value)
     {
         $this->attributes['country_id'] = $value ?: null;
     }
 
+    /**
+     * @param $value
+     */
     public function setSizeIdAttribute($value)
     {
         $this->attributes['size_id'] = $value ?: null;
     }
 
-
-
+    /**
+     * @param int $gatewayId
+     * @return bool
+     */
     public function isGatewayConfigured($gatewayId = 0)
     {
         if ( ! $this->relationLoaded('account_gateways')) {
@@ -228,11 +353,17 @@ class Account extends Eloquent
         }
     }
 
+    /**
+     * @return bool
+     */
     public function isEnglish()
     {
         return !$this->language_id || $this->language_id == DEFAULT_LANGUAGE;
     }
 
+    /**
+     * @return bool
+     */
     public function hasInvoicePrefix()
     {
         if ( ! $this->invoice_number_prefix && ! $this->quote_number_prefix) {
@@ -242,6 +373,9 @@ class Account extends Eloquent
         return $this->invoice_number_prefix != $this->quote_number_prefix;
     }
 
+    /**
+     * @return mixed
+     */
     public function getDisplayName()
     {
         if ($this->name) {
@@ -254,12 +388,18 @@ class Account extends Eloquent
         return $user->getDisplayName();
     }
 
+    /**
+     * @return string
+     */
     public function getCityState()
     {
         $swap = $this->country && $this->country->swap_postal_code;
         return Utils::cityStateZip($this->city, $this->state, $this->postal_code, $swap);
     }
 
+    /**
+     * @return mixed
+     */
     public function getMomentDateTimeFormat()
     {
         $format = $this->datetime_format ? $this->datetime_format->format_moment : DEFAULT_DATETIME_MOMENT_FORMAT;
@@ -271,6 +411,9 @@ class Account extends Eloquent
         return $format;
     }
 
+    /**
+     * @return string
+     */
     public function getMomentDateFormat()
     {
         $format = $this->getMomentDateTimeFormat();
@@ -280,6 +423,9 @@ class Account extends Eloquent
         return trim($format);
     }
 
+    /**
+     * @return string
+     */
     public function getTimezone()
     {
         if ($this->timezone) {
@@ -289,7 +435,7 @@ class Account extends Eloquent
         }
     }
 
-    public function getDateTime($date = 'now')
+    public function getDate($date = 'now')
     {
         if ( ! $date) {
             return null;
@@ -297,17 +443,36 @@ class Account extends Eloquent
             $date = new \DateTime($date);
         }
 
+        return $date;
+    }
+
+    /**
+     * @param string $date
+     * @return DateTime|null|string
+     */
+    public function getDateTime($date = 'now')
+    {
+        $date = $this->getDate($date);
         $date->setTimeZone(new \DateTimeZone($this->getTimezone()));
 
         return $date;
     }
 
+    /**
+     * @return mixed
+     */
     public function getCustomDateFormat()
     {
         return $this->date_format ? $this->date_format->format : DEFAULT_DATE_FORMAT;
     }
 
-    public function formatMoney($amount, $client = null, $hideSymbol = false)
+    /**
+     * @param $amount
+     * @param null $client
+     * @param bool $hideSymbol
+     * @return string
+     */
+    public function formatMoney($amount, $client = null, $decorator = false)
     {
         if ($client && $client->currency_id) {
             $currencyId = $client->currency_id;
@@ -325,19 +490,28 @@ class Account extends Eloquent
             $countryId = false;
         }
 
-        $hideSymbol = $this->show_currency_code || $hideSymbol;
+        if ( ! $decorator) {
+            $decorator = $this->show_currency_code ? CURRENCY_DECORATOR_CODE : CURRENCY_DECORATOR_SYMBOL;
+        }
 
-        return Utils::formatMoney($amount, $currencyId, $countryId, $hideSymbol);
+        return Utils::formatMoney($amount, $currencyId, $countryId, $decorator);
     }
 
+    /**
+     * @return mixed
+     */
     public function getCurrencyId()
     {
         return $this->currency_id ?: DEFAULT_CURRENCY;
     }
 
+    /**
+     * @param $date
+     * @return null|string
+     */
     public function formatDate($date)
     {
-        $date = $this->getDateTime($date);
+        $date = $this->getDate($date);
 
         if ( ! $date) {
             return null;
@@ -346,6 +520,10 @@ class Account extends Eloquent
         return $date->format($this->getCustomDateFormat());
     }
 
+    /**
+     * @param $date
+     * @return null|string
+     */
     public function formatDateTime($date)
     {
         $date = $this->getDateTime($date);
@@ -357,6 +535,10 @@ class Account extends Eloquent
         return $date->format($this->getCustomDateTimeFormat());
     }
 
+    /**
+     * @param $date
+     * @return null|string
+     */
     public function formatTime($date)
     {
         $date = $this->getDateTime($date);
@@ -368,11 +550,17 @@ class Account extends Eloquent
         return $date->format($this->getCustomTimeFormat());
     }
 
+    /**
+     * @return string
+     */
     public function getCustomTimeFormat()
     {
         return $this->military_time ? 'H:i' : 'g:i a';
     }
 
+    /**
+     * @return mixed
+     */
     public function getCustomDateTimeFormat()
     {
         $format = $this->datetime_format ? $this->datetime_format->format : DEFAULT_DATETIME_FORMAT;
@@ -384,32 +572,114 @@ class Account extends Eloquent
         return $format;
     }
 
-    public function getGatewayByType($type = PAYMENT_TYPE_ANY)
+    /*
+    public function defaultGatewayType()
     {
-        if ($type == PAYMENT_TYPE_STRIPE_ACH || $type == PAYMENT_TYPE_STRIPE_CREDIT_CARD) {
-            $type = PAYMENT_TYPE_STRIPE;
+        $accountGateway = $this->account_gateways[0];
+        $paymentDriver = $accountGateway->paymentDriver();
+
+        return $paymentDriver->gatewayTypes()[0];
+    }
+    */
+
+    /**
+     * @param bool $type
+     * @return AccountGateway|bool
+     */
+    public function getGatewayByType($type = false)
+    {
+        if ( ! $this->relationLoaded('account_gateways')) {
+            $this->load('account_gateways');
         }
 
-        if ($type == PAYMENT_TYPE_BRAINTREE_PAYPAL) {
-            $gateway = $this->getGatewayConfig(GATEWAY_BRAINTREE);
-
-            if (!$gateway || !$gateway->getPayPalEnabled()){
-                return false;
+        /** @var AccountGateway $accountGateway */
+        foreach ($this->account_gateways as $accountGateway) {
+            if ( ! $type) {
+                return $accountGateway;
             }
-            return $gateway;
-        }
 
-        foreach ($this->account_gateways as $gateway) {
-            if (!$type || $type == PAYMENT_TYPE_ANY) {
-                return $gateway;
-            } elseif ($gateway->isPaymentType($type)) {
-                return $gateway;
+            $paymentDriver = $accountGateway->paymentDriver();
+
+            if ($paymentDriver->handles($type)) {
+                return $accountGateway;
             }
         }
 
         return false;
     }
 
+    /**
+     * @return array
+     */
+    public function availableGatewaysIds()
+    {
+        if ( ! $this->relationLoaded('account_gateways')) {
+            $this->load('account_gateways');
+        }
+
+        $gatewayTypes = [];
+        $gatewayIds = [];
+
+        foreach ($this->account_gateways as $accountGateway) {
+            $paymentDriver = $accountGateway->paymentDriver();
+            $gatewayTypes = array_unique(array_merge($gatewayTypes, $paymentDriver->gatewayTypes()));
+        }
+
+        foreach (Cache::get('gateways') as $gateway) {
+            $paymentDriverClass = AccountGateway::paymentDriverClass($gateway->provider);
+            $paymentDriver = new $paymentDriverClass();
+            $available = true;
+
+            foreach ($gatewayTypes as $type) {
+                if ($paymentDriver->handles($type)) {
+                    $available = false;
+                    break;
+                }
+            }
+            if ($available) {
+                $gatewayIds[] = $gateway->id;
+            }
+        }
+
+        return $gatewayIds;
+    }
+
+    /**
+     * @param bool $invitation
+     * @param mixed $gatewayTypeId
+     * @return bool
+     */
+    public function paymentDriver($invitation = false, $gatewayTypeId = false)
+    {
+        /** @var AccountGateway $accountGateway */
+        if ($accountGateway = $this->getGatewayByType($gatewayTypeId)) {
+            return $accountGateway->paymentDriver($invitation, $gatewayTypeId);
+        }
+
+        return false;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function gatewayIds()
+    {
+        return $this->account_gateways()->pluck('gateway_id')->toArray();
+    }
+
+    /**
+     * @param $gatewayId
+     * @return bool
+     */
+    public function hasGatewayId($gatewayId)
+    {
+        return in_array($gatewayId, $this->gatewayIds());
+    }
+
+    /**
+     * @param $gatewayId
+     * @return bool
+     */
     public function getGatewayConfig($gatewayId)
     {
         foreach ($this->account_gateways as $gateway) {
@@ -421,6 +691,9 @@ class Account extends Eloquent
         return false;
     }
 
+    /**
+     * @return bool
+     */
     public function hasLogo()
     {
         if($this->logo == ''){
@@ -430,6 +703,9 @@ class Account extends Eloquent
         return !empty($this->logo);
     }
 
+    /**
+     * @return mixed
+     */
     public function getLogoDisk(){
         return Storage::disk(env('LOGO_FILESYSTEM', 'logos'));
     }
@@ -454,6 +730,9 @@ class Account extends Eloquent
         $this->save();
     }
 
+    /**
+     * @return null
+     */
     public function getLogoRaw(){
         if(!$this->hasLogo()){
             return null;
@@ -463,6 +742,10 @@ class Account extends Eloquent
         return $disk->get($this->logo);
     }
 
+    /**
+     * @param bool $cachebuster
+     * @return null|string
+     */
     public function getLogoURL($cachebuster = false)
     {
         if(!$this->hasLogo()){
@@ -474,20 +757,37 @@ class Account extends Eloquent
 
         if($adapter instanceof \League\Flysystem\Adapter\Local) {
             // Stored locally
-            $logo_url = str_replace(public_path(), url('/'), $adapter->applyPathPrefix($this->logo), $count);
+            $logoUrl = url('/logo/' . $this->logo);
 
             if ($cachebuster) {
-               $logo_url .= '?no_cache='.time();
+                $logoUrl .= '?no_cache='.time();
             }
 
-            if($count == 1){
-                return str_replace(DIRECTORY_SEPARATOR, '/', $logo_url);
-            }
+            return $logoUrl;
         }
 
         return Document::getDirectFileUrl($this->logo, $this->getLogoDisk());
     }
 
+    public function getLogoPath()
+    {
+        if ( ! $this->hasLogo()){
+            return null;
+        }
+
+        $disk = $this->getLogoDisk();
+        $adapter = $disk->getAdapter();
+
+        if ($adapter instanceof \League\Flysystem\Adapter\Local) {
+            return $adapter->applyPathPrefix($this->logo);
+        } else {
+            return Document::getDirectFileUrl($this->logo, $this->getLogoDisk());
+        }
+    }
+
+    /**
+     * @return mixed
+     */
     public function getPrimaryUser()
     {
         return $this->users()
@@ -495,6 +795,11 @@ class Account extends Eloquent
                     ->first();
     }
 
+    /**
+     * @param $userId
+     * @param $name
+     * @return null
+     */
     public function getToken($userId, $name)
     {
         foreach ($this->account_tokens as $token) {
@@ -506,6 +811,9 @@ class Account extends Eloquent
         return null;
     }
 
+    /**
+     * @return mixed|null
+     */
     public function getLogoWidth()
     {
         if(!$this->hasLogo()){
@@ -515,6 +823,9 @@ class Account extends Eloquent
         return $this->logo_width;
     }
 
+    /**
+     * @return mixed|null
+     */
     public function getLogoHeight()
     {
         if(!$this->hasLogo()){
@@ -524,6 +835,11 @@ class Account extends Eloquent
         return $this->logo_height;
     }
 
+    /**
+     * @param $entityType
+     * @param null $clientId
+     * @return mixed
+     */
     public function createInvoice($entityType = ENTITY_INVOICE, $clientId = null)
     {
         $invoice = Invoice::createNew();
@@ -545,7 +861,7 @@ class Account extends Eloquent
 
             if ($this->hasClientNumberPattern($invoice) && !$clientId) {
                 // do nothing, we don't yet know the value
-            } else {
+            } elseif ( ! $invoice->invoice_number) {
                 $invoice->invoice_number = $this->getNextInvoiceNumber($invoice);
             }
         }
@@ -558,6 +874,10 @@ class Account extends Eloquent
         return $invoice;
     }
 
+    /**
+     * @param $invoice_type_id
+     * @return string
+     */
     public function getNumberPrefix($invoice_type_id)
     {
         if ( ! $this->hasFeature(FEATURE_INVOICE_SETTINGS)) {
@@ -567,6 +887,10 @@ class Account extends Eloquent
         return ($invoice_type_id == INVOICE_TYPE_QUOTE ? $this->quote_number_prefix : $this->invoice_number_prefix) ?: '';
     }
 
+    /**
+     * @param $invoice_type_id
+     * @return bool
+     */
     public function hasNumberPattern($invoice_type_id)
     {
         if ( ! $this->hasFeature(FEATURE_INVOICE_SETTINGS)) {
@@ -576,6 +900,10 @@ class Account extends Eloquent
         return $invoice_type_id == INVOICE_TYPE_QUOTE ? ($this->quote_number_pattern ? true : false) : ($this->invoice_number_pattern ? true : false);
     }
 
+    /**
+     * @param $invoice
+     * @return string
+     */
     public function hasClientNumberPattern($invoice)
     {
         $pattern = $invoice->invoice_type_id == INVOICE_TYPE_QUOTE ? $this->quote_number_pattern : $this->invoice_number_pattern;
@@ -583,6 +911,10 @@ class Account extends Eloquent
         return strstr($pattern, '$custom');
     }
 
+    /**
+     * @param $invoice
+     * @return bool|mixed
+     */
     public function getNumberPattern($invoice)
     {
         $pattern = $invoice->invoice_type_id == INVOICE_TYPE_QUOTE ? $this->quote_number_pattern : $this->invoice_number_pattern;
@@ -607,7 +939,8 @@ class Account extends Eloquent
         if (count($matches) > 1) {
             $format = $matches[1];
             $search[] = $matches[0];
-            $replace[] = str_replace($format, date($format), $matches[1]);
+            $date = Carbon::now(session(SESSION_TIMEZONE, DEFAULT_TIMEZONE))->format($format);
+            $replace[] = str_replace($format, $date, $matches[1]);
         }
 
         $pattern = str_replace($search, $replace, $pattern);
@@ -619,6 +952,11 @@ class Account extends Eloquent
         return $pattern;
     }
 
+    /**
+     * @param $pattern
+     * @param $invoice
+     * @return mixed
+     */
     private function getClientInvoiceNumber($pattern, $invoice)
     {
         if (!$invoice->client) {
@@ -638,89 +976,91 @@ class Account extends Eloquent
         return str_replace($search, $replace, $pattern);
     }
 
+    /**
+     * @param $invoice_type_id
+     * @return mixed
+     */
     public function getCounter($invoice_type_id)
     {
         return $invoice_type_id == INVOICE_TYPE_QUOTE && !$this->share_counter ? $this->quote_number_counter : $this->invoice_number_counter;
     }
 
+    /**
+     * @param $entityType
+     * @return mixed|string
+     */
     public function previewNextInvoiceNumber($entityType = ENTITY_INVOICE)
     {
         $invoice = $this->createInvoice($entityType);
         return $this->getNextInvoiceNumber($invoice);
     }
 
-    public function getNextInvoiceNumber($invoice)
+    /**
+     * @param $invoice
+     * @param bool $validateUnique
+     * @return mixed|string
+     */
+    public function getNextInvoiceNumber($invoice, $validateUnique = true)
     {
         if ($this->hasNumberPattern($invoice->invoice_type_id)) {
-            return $this->getNumberPattern($invoice);
+            $number = $this->getNumberPattern($invoice);
+        } else {
+            $counter = $this->getCounter($invoice->invoice_type_id);
+            $prefix = $this->getNumberPrefix($invoice->invoice_type_id);
+            $counterOffset = 0;
+            $check = false;
+
+            // confirm the invoice number isn't already taken
+            do {
+                $number = $prefix . str_pad($counter, $this->invoice_number_padding, '0', STR_PAD_LEFT);
+                if ($validateUnique) {
+                    $check = Invoice::scope(false, $this->id)->whereInvoiceNumber($number)->withTrashed()->first();
+                    $counter++;
+                    $counterOffset++;
+                }
+            } while ($check);
+
+            // update the invoice counter to be caught up
+            if ($counterOffset > 1) {
+                if ($invoice->isType(INVOICE_TYPE_QUOTE) && !$this->share_counter) {
+                    $this->quote_number_counter += $counterOffset - 1;
+                } else {
+                    $this->invoice_number_counter += $counterOffset - 1;
+                }
+
+                $this->save();
+            }
         }
 
-        $counter = $this->getCounter($invoice->invoice_type_id);
-        $prefix = $this->getNumberPrefix($invoice->invoice_type_id);
-        $counterOffset = 0;
-
-        // confirm the invoice number isn't already taken
-        do {
-            $number = $prefix . str_pad($counter, $this->invoice_number_padding, '0', STR_PAD_LEFT);
-            $check = Invoice::scope(false, $this->id)->whereInvoiceNumber($number)->withTrashed()->first();
-            $counter++;
-            $counterOffset++;
-        } while ($check);
-
-        // update the invoice counter to be caught up
-        if ($counterOffset > 1) {
-            if ($invoice->isType(INVOICE_TYPE_QUOTE) && !$this->share_counter) {
-                $this->quote_number_counter += $counterOffset - 1;
-            } else {
-                $this->invoice_number_counter += $counterOffset - 1;
-            }
-
-            $this->save();
+        if ($invoice->recurring_invoice_id) {
+            $number = $this->recurring_invoice_number_prefix . $number;
         }
 
         return $number;
     }
 
+    /**
+     * @param $invoice
+     */
     public function incrementCounter($invoice)
     {
+        // if they didn't use the counter don't increment it
+        if ($invoice->invoice_number != $this->getNextInvoiceNumber($invoice, false)) {
+            return;
+        }
+
         if ($invoice->isType(INVOICE_TYPE_QUOTE) && !$this->share_counter) {
             $this->quote_number_counter += 1;
         } else {
-            $default = $this->invoice_number_counter;
-            $actual = Utils::parseInt($invoice->invoice_number);
-
-            if ( ! $this->hasFeature(FEATURE_INVOICE_SETTINGS) && $default != $actual) {
-                $this->invoice_number_counter = $actual + 1;
-            } else {
-                $this->invoice_number_counter += 1;
-            }
+            $this->invoice_number_counter += 1;
         }
 
         $this->save();
     }
 
-    public function loadAllData($updatedAt = null)
-    {
-        $map = [
-            'users' => [],
-            'clients' => ['contacts'],
-            'invoices' => ['invoice_items', 'user', 'client', 'payments'],
-            'products' => [],
-            'tax_rates' => [],
-            'expenses' => ['client', 'invoice', 'vendor'],
-            'payments' => ['invoice'],
-        ];
-
-        foreach ($map as $key => $values) {
-            $this->load([$key => function($query) use ($values, $updatedAt) {
-                $query->withTrashed()->with($values);
-                if ($updatedAt) {
-                    $query->where('updated_at', '>=', $updatedAt);
-                }
-            }]);
-        }
-    }
-
+    /**
+     * @param bool $client
+     */
     public function loadLocalizationSettings($client = false)
     {
         $this->load('timezone', 'date_format', 'datetime_format', 'language');
@@ -735,6 +1075,7 @@ class Account extends Eloquent
         $locale = ($client && $client->language_id) ? $client->language->locale : ($this->language_id ? $this->Language->locale : DEFAULT_LOCALE);
 
         Session::put(SESSION_CURRENCY, $currencyId);
+        Session::put(SESSION_CURRENCY_DECORATOR, $this->show_currency_code ? CURRENCY_DECORATOR_CODE : CURRENCY_DECORATOR_SYMBOL);
         Session::put(SESSION_LOCALE, $locale);
 
         App::setLocale($locale);
@@ -744,72 +1085,21 @@ class Account extends Eloquent
             $format = str_replace('g:i a', 'H:i', $format);
         }
         Session::put(SESSION_DATETIME_FORMAT, $format);
+
+        Session::put('start_of_week', $this->start_of_week);
     }
 
-    public function getInvoiceLabels()
-    {
-        $data = [];
-        $custom = (array) json_decode($this->invoice_labels);
-
-        $fields = [
-            'invoice',
-            'invoice_date',
-            'due_date',
-            'invoice_number',
-            'po_number',
-            'discount',
-            'taxes',
-            'tax',
-            'item',
-            'description',
-            'unit_cost',
-            'quantity',
-            'line_total',
-            'subtotal',
-            'paid_to_date',
-            'balance_due',
-            'partial_due',
-            'terms',
-            'your_invoice',
-            'quote',
-            'your_quote',
-            'quote_date',
-            'quote_number',
-            'total',
-            'invoice_issued_to',
-            'quote_issued_to',
-            //'date',
-            'rate',
-            'hours',
-            'balance',
-            'from',
-            'to',
-            'invoice_to',
-            'details',
-            'invoice_no',
-            'valid_until',
-        ];
-
-        foreach ($fields as $field) {
-            if (isset($custom[$field]) && $custom[$field]) {
-                $data[$field] = $custom[$field];
-            } else {
-                $data[$field] = $this->isEnglish() ? uctrans("texts.$field") : trans("texts.$field");
-            }
-        }
-
-        foreach (['item', 'quantity', 'unit_cost'] as $field) {
-            $data["{$field}_orig"] = $data[$field];
-        }
-
-        return $data;
-    }
-
+    /**
+     * @return bool
+     */
     public function isNinjaAccount()
     {
         return $this->account_key === NINJA_ACCOUNT_KEY;
     }
 
+    /**
+     * @param $plan
+     */
     public function startTrial($plan)
     {
         if ( ! Utils::isNinja()) {
@@ -821,6 +1111,10 @@ class Account extends Eloquent
         $this->company->save();
     }
 
+    /**
+     * @param $feature
+     * @return bool
+     */
     public function hasFeature($feature)
     {
         if (Utils::isNinjaDev()) {
@@ -840,8 +1134,13 @@ class Account extends Eloquent
 
         switch ($feature) {
             // Pro
+            case FEATURE_TASKS:
+            case FEATURE_EXPENSES:
+                if (Utils::isNinja() && $this->company_id < EXTRAS_GRANDFATHER_COMPANY_ID) {
+                    return true;
+                }
+
             case FEATURE_CUSTOMIZE_INVOICE_DESIGN:
-            case FEATURE_REMOVE_CREATED_BY:
             case FEATURE_DIFFERENT_DESIGNS:
             case FEATURE_EMAIL_TEMPLATES_REMINDERS:
             case FEATURE_INVOICE_SETTINGS:
@@ -850,6 +1149,7 @@ class Account extends Eloquent
             case FEATURE_MORE_INVOICE_DESIGNS:
             case FEATURE_QUOTES:
             case FEATURE_REPORTS:
+            case FEATURE_BUY_NOW_BUTTONS:
             case FEATURE_API:
             case FEATURE_CLIENT_PORTAL_PASSWORD:
             case FEATURE_CUSTOM_URL:
@@ -866,6 +1166,7 @@ class Account extends Eloquent
                 }
                 // Fallthrough
             case FEATURE_CLIENT_PORTAL_CSS:
+            case FEATURE_REMOVE_CREATED_BY:
                 return !empty($planDetails);// A plan is required even for self-hosted users
 
             // Enterprise; No Trial allowed; grandfathered for old pro users
@@ -887,6 +1188,10 @@ class Account extends Eloquent
         }
     }
 
+    /**
+     * @param null $plan_details
+     * @return bool
+     */
     public function isPro(&$plan_details = null)
     {
         if (!Utils::isNinjaProd()) {
@@ -902,6 +1207,10 @@ class Account extends Eloquent
         return !empty($plan_details);
     }
 
+    /**
+     * @param null $plan_details
+     * @return bool
+     */
     public function isEnterprise(&$plan_details = null)
     {
         if (!Utils::isNinjaProd()) {
@@ -917,6 +1226,11 @@ class Account extends Eloquent
         return $plan_details && $plan_details['plan'] == PLAN_ENTERPRISE;
     }
 
+    /**
+     * @param bool $include_inactive
+     * @param bool $include_trial
+     * @return array|null
+     */
     public function getPlanDetails($include_inactive = false, $include_trial = true)
     {
         if (!$this->company) {
@@ -924,9 +1238,10 @@ class Account extends Eloquent
         }
 
         $plan = $this->company->plan;
+        $price = $this->company->plan_price;
         $trial_plan = $this->company->trial_plan;
 
-        if(!$plan && (!$trial_plan || !$include_trial)) {
+        if((!$plan || $plan == PLAN_FREE) && (!$trial_plan || !$include_trial)) {
             return null;
         }
 
@@ -986,7 +1301,10 @@ class Account extends Eloquent
         }
 
         if ($use_plan) {
-            return array(
+            return [
+                'company_id' => $this->company->id,
+                'num_users' => $this->company->num_users,
+                'plan_price' => $price,
                 'trial' => false,
                 'plan' => $plan,
                 'started' => DateTime::createFromFormat('Y-m-d', $this->company->plan_started),
@@ -994,18 +1312,24 @@ class Account extends Eloquent
                 'paid' => DateTime::createFromFormat('Y-m-d', $this->company->plan_paid),
                 'term' => $this->company->plan_term,
                 'active' => $plan_active,
-            );
+            ];
         } else {
-            return array(
+            return [
+                'company_id' => $this->company->id,
+                'num_users' => 1,
+                'plan_price' => 0,
                 'trial' => true,
                 'plan' => $trial_plan,
                 'started' => $trial_started,
                 'expires' => $trial_expires,
                 'active' => $trial_active,
-            );
+            ];
         }
     }
 
+    /**
+     * @return bool
+     */
     public function isTrial()
     {
         if (!Utils::isNinjaProd()) {
@@ -1017,13 +1341,17 @@ class Account extends Eloquent
         return $plan_details && $plan_details['trial'];
     }
 
+    /**
+     * @param null $plan
+     * @return array|bool
+     */
     public function isEligibleForTrial($plan = null)
     {
         if (!$this->company->trial_plan) {
             if ($plan) {
                 return $plan == PLAN_PRO || $plan == PLAN_ENTERPRISE;
             } else {
-                return array(PLAN_PRO, PLAN_ENTERPRISE);
+                return [PLAN_PRO, PLAN_ENTERPRISE];
             }
         }
 
@@ -1031,13 +1359,16 @@ class Account extends Eloquent
             if ($plan) {
                 return $plan != PLAN_PRO;
             } else {
-                return array(PLAN_ENTERPRISE);
+                return [PLAN_ENTERPRISE];
             }
         }
 
         return false;
     }
 
+    /**
+     * @return int
+     */
     public function getCountTrialDaysLeft()
     {
         $planDetails = $this->getPlanDetails(true);
@@ -1052,6 +1383,9 @@ class Account extends Eloquent
         return $interval ? $interval->d : 0;
     }
 
+    /**
+     * @return mixed
+     */
     public function getRenewalDate()
     {
         $planDetails = $this->getPlanDetails();
@@ -1063,9 +1397,12 @@ class Account extends Eloquent
             $date = date_create();
         }
 
-        return $date->format('Y-m-d');
+        return Carbon::instance($date);
     }
 
+    /**
+     * @return float|null
+     */
     public function getLogoSize()
     {
         if(!$this->hasLogo()){
@@ -1075,16 +1412,26 @@ class Account extends Eloquent
         return round($this->logo_size / 1000);
     }
 
+    /**
+     * @return bool
+     */
     public function isLogoTooLarge()
     {
         return $this->getLogoSize() > MAX_LOGO_FILE_SIZE;
     }
 
+    /**
+     * @param $eventId
+     * @return \Illuminate\Database\Eloquent\Model|null|static
+     */
     public function getSubscription($eventId)
     {
         return Subscription::where('account_id', '=', $this->id)->where('event_id', '=', $eventId)->first();
     }
 
+    /**
+     * @return $this
+     */
     public function hideFieldsForViz()
     {
         foreach ($this->clients as $client) {
@@ -1131,6 +1478,10 @@ class Account extends Eloquent
         return $this;
     }
 
+    /**
+     * @param $entityType
+     * @return mixed
+     */
     public function getDefaultEmailSubject($entityType)
     {
         if (strpos($entityType, 'reminder') !== false) {
@@ -1140,6 +1491,10 @@ class Account extends Eloquent
         return trans("texts.{$entityType}_subject", ['invoice' => '$invoice', 'account' => '$account']);
     }
 
+    /**
+     * @param $entityType
+     * @return mixed
+     */
     public function getEmailSubject($entityType)
     {
         if ($this->hasFeature(FEATURE_CUSTOM_EMAILS)) {
@@ -1154,29 +1509,39 @@ class Account extends Eloquent
         return $this->getDefaultEmailSubject($entityType);
     }
 
+    /**
+     * @param $entityType
+     * @param bool $message
+     * @return string
+     */
     public function getDefaultEmailTemplate($entityType, $message = false)
     {
         if (strpos($entityType, 'reminder') !== false) {
             $entityType = ENTITY_INVOICE;
         }
 
-        $template = "<div>\$client,</div><br>";
+        $template = '<div>$client,</div><br>';
 
         if ($this->hasFeature(FEATURE_CUSTOM_EMAILS) && $this->email_design_id != EMAIL_DESIGN_PLAIN) {
-            $template .= "<div>" . trans("texts.{$entityType}_message_button", ['amount' => '$amount']) . "</div><br>" .
-                         "<div style=\"text-align: center;\">\$viewButton</div><br>";
+            $template .= '<div>' . trans("texts.{$entityType}_message_button", ['amount' => '$amount']) . '</div><br>' .
+                         '<div style="text-align: center;">$viewButton</div><br>';
         } else {
-            $template .= "<div>" . trans("texts.{$entityType}_message", ['amount' => '$amount']) . "</div><br>" .
-                         "<div>\$viewLink</div><br>";
+            $template .= '<div>' . trans("texts.{$entityType}_message", ['amount' => '$amount']) . '</div><br>' .
+                         '<div>$viewLink</div><br>';
         }
 
         if ($message) {
             $template .= "$message<p/>\r\n\r\n";
         }
 
-        return $template . "\$footer";
+        return $template . '$footer';
     }
 
+    /**
+     * @param $entityType
+     * @param bool $message
+     * @return mixed
+     */
     public function getEmailTemplate($entityType, $message = false)
     {
         $template = false;
@@ -1194,21 +1559,32 @@ class Account extends Eloquent
         return str_replace('/>', ' />', $template);
     }
 
+    /**
+     * @param string $view
+     * @return string
+     */
     public function getTemplateView($view = '')
     {
         return $this->getEmailDesignId() == EMAIL_DESIGN_PLAIN ? $view : 'design' . $this->getEmailDesignId();
     }
 
+    /**
+     * @return mixed|string
+     */
     public function getEmailFooter()
     {
         if ($this->email_footer) {
             // Add line breaks if HTML isn't already being used
             return strip_tags($this->email_footer) == $this->email_footer ? nl2br($this->email_footer) : $this->email_footer;
         } else {
-            return "<p><div>" . trans('texts.email_signature') . "\n<br>\$account</div></p>";
+            return '<p><div>' . trans('texts.email_signature') . "\n<br>\$account</div></p>";
         }
     }
 
+    /**
+     * @param $reminder
+     * @return bool
+     */
     public function getReminderDate($reminder)
     {
         if ( ! $this->{"enable_reminder{$reminder}"}) {
@@ -1221,7 +1597,11 @@ class Account extends Eloquent
         return date('Y-m-d', strtotime("$plusMinus $numDays days"));
     }
 
-    public function getInvoiceReminder($invoice)
+    /**
+     * @param Invoice $invoice
+     * @return bool|string
+     */
+    public function getInvoiceReminder(Invoice $invoice)
     {
         for ($i=1; $i<=3; $i++) {
             if ($date = $this->getReminderDate($i)) {
@@ -1235,6 +1615,10 @@ class Account extends Eloquent
         return false;
     }
 
+    /**
+     * @param null $storage_gateway
+     * @return bool
+     */
     public function showTokenCheckbox(&$storage_gateway = null)
     {
         if (!($storage_gateway = $this->getTokenGatewayId())) {
@@ -1245,6 +1629,9 @@ class Account extends Eloquent
                 || $this->token_billing_type_id == TOKEN_BILLING_OPT_OUT;
     }
 
+    /**
+     * @return bool
+     */
     public function getTokenGatewayId() {
         if ($this->isGatewayConfigured(GATEWAY_STRIPE)) {
             return GATEWAY_STRIPE;
@@ -1257,6 +1644,9 @@ class Account extends Eloquent
         }
     }
 
+    /**
+     * @return bool|void
+     */
     public function getTokenGateway() {
         $gatewayId = $this->getTokenGatewayId();
         if (!$gatewayId) {
@@ -1266,11 +1656,17 @@ class Account extends Eloquent
         return $this->getGatewayConfig($gatewayId);
     }
 
+    /**
+     * @return bool
+     */
     public function selectTokenCheckbox()
     {
         return $this->token_billing_type_id == TOKEN_BILLING_OPT_OUT;
     }
 
+    /**
+     * @return string
+     */
     public function getSiteUrl()
     {
         $url = SITE_URL;
@@ -1285,6 +1681,10 @@ class Account extends Eloquent
         return $url;
     }
 
+    /**
+     * @param $host
+     * @return bool
+     */
     public function checkSubdomain($host)
     {
         if (!$this->subdomain) {
@@ -1301,10 +1701,15 @@ class Account extends Eloquent
         return true;
     }
 
+    /**
+     * @param $field
+     * @param bool $entity
+     * @return bool
+     */
     public function showCustomField($field, $entity = false)
     {
-        if ($this->hasFeature(FEATURE_INVOICE_SETTINGS)) {
-            return $this->$field ? true : false;
+        if ($this->hasFeature(FEATURE_INVOICE_SETTINGS) && $this->$field) {
+            return true;
         }
 
         if (!$entity) {
@@ -1317,16 +1722,25 @@ class Account extends Eloquent
         return Utils::isEmpty($entity->$field) ? false : true;
     }
 
+    /**
+     * @return bool
+     */
     public function attachPDF()
     {
         return $this->hasFeature(FEATURE_PDF_ATTACHMENT) && $this->pdf_email_attachment;
     }
 
+    /**
+     * @return mixed
+     */
     public function getEmailDesignId()
     {
         return $this->hasFeature(FEATURE_CUSTOM_EMAILS) ? $this->email_design_id : EMAIL_DESIGN_PLAIN;
     }
 
+    /**
+     * @return string
+     */
     public function clientViewCSS(){
         $css = '';
 
@@ -1347,12 +1761,16 @@ class Account extends Eloquent
         return $css;
     }
 
+    /**
+     * @param string $protocol
+     * @return string
+     */
     public function getFontsUrl($protocol = ''){
         $bodyFont = $this->getHeaderFontId();
         $headerFont = $this->getBodyFontId();
 
         $bodyFontSettings = Utils::getFromCache($bodyFont, 'fonts');
-        $google_fonts = array($bodyFontSettings['google_font']);
+        $google_fonts = [$bodyFontSettings['google_font']];
 
         if($headerFont != $bodyFont){
             $headerFontSettings = Utils::getFromCache($headerFont, 'fonts');
@@ -1362,22 +1780,38 @@ class Account extends Eloquent
         return ($protocol?$protocol.':':'').'//fonts.googleapis.com/css?family='.implode('|',$google_fonts);
     }
 
+    /**
+     * @return mixed
+     */
     public function getHeaderFontId() {
         return ($this->hasFeature(FEATURE_CUSTOMIZE_INVOICE_DESIGN) && $this->header_font_id) ? $this->header_font_id : DEFAULT_HEADER_FONT;
     }
 
+    /**
+     * @return mixed
+     */
     public function getBodyFontId() {
         return ($this->hasFeature(FEATURE_CUSTOMIZE_INVOICE_DESIGN) && $this->body_font_id) ? $this->body_font_id : DEFAULT_BODY_FONT;
     }
 
+    /**
+     * @return null
+     */
     public function getHeaderFontName(){
         return Utils::getFromCache($this->getHeaderFontId(), 'fonts')['name'];
     }
 
+    /**
+     * @return null
+     */
     public function getBodyFontName(){
         return Utils::getFromCache($this->getBodyFontId(), 'fonts')['name'];
     }
 
+    /**
+     * @param bool $include_weight
+     * @return string
+     */
     public function getHeaderFontCss($include_weight = true){
         $font_data = Utils::getFromCache($this->getHeaderFontId(), 'fonts');
         $css = 'font-family:'.$font_data['css_stack'].';';
@@ -1389,6 +1823,10 @@ class Account extends Eloquent
         return $css;
     }
 
+    /**
+     * @param bool $include_weight
+     * @return string
+     */
     public function getBodyFontCss($include_weight = true){
         $font_data = Utils::getFromCache($this->getBodyFontId(), 'fonts');
         $css = 'font-family:'.$font_data['css_stack'].';';
@@ -1400,12 +1838,18 @@ class Account extends Eloquent
         return $css;
     }
 
+    /**
+     * @return array
+     */
     public function getFonts(){
-        return array_unique(array($this->getHeaderFontId(), $this->getBodyFontId()));
+        return array_unique([$this->getHeaderFontId(), $this->getBodyFontId()]);
     }
 
+    /**
+     * @return array
+     */
     public function getFontsData(){
-        $data = array();
+        $data = [];
 
         foreach($this->getFonts() as $font){
             $data[] = Utils::getFromCache($font, 'fonts');
@@ -1414,42 +1858,61 @@ class Account extends Eloquent
         return $data;
     }
 
+    /**
+     * @return array
+     */
     public function getFontFolders(){
         return array_map(function($item){return $item['folder'];}, $this->getFontsData());
     }
 
-    public function canAddGateway($type){
-        if($this->getGatewayByType($type)) {
+    public function isModuleEnabled($entityType)
+    {
+        if ( ! in_array($entityType, [
+            ENTITY_RECURRING_INVOICE,
+            ENTITY_CREDIT,
+            ENTITY_QUOTE,
+            ENTITY_TASK,
+            ENTITY_EXPENSE,
+            ENTITY_VENDOR,
+        ])) {
+            return true;
+        }
+
+        return $this->enabled_modules & static::$modules[$entityType];
+    }
+
+    public function showAuthenticatePanel($invoice)
+    {
+        return $this->showAcceptTerms($invoice) || $this->showSignature($invoice);
+    }
+
+    public function showAcceptTerms($invoice)
+    {
+        if ( ! $this->isPro() || ! $invoice->terms) {
             return false;
         }
-        if ($type == PAYMENT_TYPE_CREDIT_CARD && $this->getGatewayByType(PAYMENT_TYPE_STRIPE)) {
-            // Stripe is already handling credit card payments
+
+        return $invoice->is_quote ? $this->show_accept_quote_terms : $this->show_accept_invoice_terms;
+    }
+
+    public function showSignature($invoice)
+    {
+        if ( ! $this->isPro()) {
             return false;
         }
 
-        if ($type == PAYMENT_TYPE_STRIPE && $this->getGatewayByType(PAYMENT_TYPE_CREDIT_CARD)) {
-            // Another gateway is already handling credit card payments
-            return false;
-        }
-
-        if ($type == PAYMENT_TYPE_DIRECT_DEBIT && $stripeGateway = $this->getGatewayByType(PAYMENT_TYPE_STRIPE)) {
-            if (!empty($stripeGateway->getAchEnabled())) {
-                // Stripe is already handling ACH payments
-                return false;
-            }
-        }
-
-        if ($type == PAYMENT_TYPE_PAYPAL && $braintreeGateway = $this->getGatewayConfig(GATEWAY_BRAINTREE)) {
-            if (!empty($braintreeGateway->getPayPalEnabled())) {
-                // PayPal is already enabled
-                return false;
-            }
-        }
-
-        return true;
+        return $invoice->is_quote ? $this->require_quote_signature : $this->require_invoice_signature;
     }
 }
 
-Account::updated(function ($account) {
+Account::updated(function ($account)
+{
+    // prevent firing event if the invoice/quote counter was changed
+    // TODO: remove once counters are moved to separate table
+    $dirty = $account->getDirty();
+    if (isset($dirty['invoice_number_counter']) || isset($dirty['quote_number_counter'])) {
+        return;
+    }
+
     Event::fire(new UserSettingsChanged());
 });

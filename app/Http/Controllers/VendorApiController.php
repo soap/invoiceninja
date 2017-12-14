@@ -1,14 +1,13 @@
 <?php namespace App\Http\Controllers;
 // vendor
+use App\Http\Requests\UpdateVendorRequest;
+use App\Http\Requests\VendorRequest;
 use Utils;
 use Response;
 use Input;
-use Auth;
 use App\Models\Vendor;
 use App\Ninja\Repositories\VendorRepository;
 use App\Http\Requests\CreateVendorRequest;
-use App\Http\Controllers\BaseAPIController;
-use App\Ninja\Transformers\VendorTransformer;
 
 class VendorApiController extends BaseAPIController
 {
@@ -83,6 +82,75 @@ class VendorApiController extends BaseAPIController
         $vendor = Vendor::scope($vendor->public_id)
                     ->with('country', 'vendor_contacts', 'industry', 'size', 'currency')
                     ->first();
+
+        return $this->itemResponse($vendor);
+    }
+
+        /**
+         * @SWG\Put(
+         *   path="/vendors/{vendor_id}",
+         *   tags={"vendor"},
+         *   summary="Update a vendor",
+         *   @SWG\Parameter(
+         *     in="body",
+         *     name="body",
+         *     @SWG\Schema(ref="#/definitions/Vendor")
+         *   ),
+         *   @SWG\Response(
+         *     response=200,
+         *     description="Update vendor",
+         *      @SWG\Schema(type="object", @SWG\Items(ref="#/definitions/Vendor"))
+         *   ),
+         *   @SWG\Response(
+         *     response="default",
+         *     description="an ""unexpected"" error"
+         *   )
+         * )
+         */
+
+    public function update(UpdateVendorRequest $request, $publicId)
+    {
+        if ($request->action) {
+            return $this->handleAction($request);
+        }
+
+        $data = $request->input();
+        $data['public_id'] = $publicId;
+        $vendor = $this->vendorRepo->save($data, $request->entity());
+
+        $vendor->load(['vendor_contacts']);
+
+        return $this->itemResponse($vendor);
+    }
+
+
+        /**
+         * @SWG\Delete(
+         *   path="/vendors/{vendor_id}",
+         *   tags={"vendor"},
+         *   summary="Delete a vendor",
+         *   @SWG\Parameter(
+         *     in="body",
+         *     name="body",
+         *     @SWG\Schema(ref="#/definitions/Vendor")
+         *   ),
+         *   @SWG\Response(
+         *     response=200,
+         *     description="Delete vendor",
+         *      @SWG\Schema(type="object", @SWG\Items(ref="#/definitions/Vendor"))
+         *   ),
+         *   @SWG\Response(
+         *     response="default",
+         *     description="an ""unexpected"" error"
+         *   )
+         * )
+         */
+
+    public function destroy(VendorRequest $request)
+    {
+        $vendor = $request->entity();
+
+        $this->vendorRepo->delete($vendor);
 
         return $this->itemResponse($vendor);
     }

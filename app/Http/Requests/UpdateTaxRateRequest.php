@@ -1,11 +1,9 @@
 <?php namespace App\Http\Requests;
 
-use App\Http\Requests\Request;
-use Illuminate\Validation\Factory;
+
 
 class UpdateTaxRateRequest extends TaxRateRequest
 {
-    // Expenses 
     /**
      * Determine if the user is authorized to make this request.
      *

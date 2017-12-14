@@ -2,7 +2,6 @@
 
 use Auth;
 use Cache;
-use DB;
 use App;
 use Schema;
 use Session;
@@ -17,10 +16,16 @@ use stdClass;
 use Carbon;
 use WePay;
 
-use App\Models\Currency;
-
 class Utils
 {
+    private static $weekdayNames = [
+        "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday",
+    ];
+
+    public static $months = [
+        'january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december',
+    ];
+
     public static function isRegistered()
     {
         return Auth::check() && Auth::user()->registered;
@@ -90,6 +95,17 @@ class Utils
         return Utils::getResllerType() ? true : false;
     }
 
+    public static function isWhiteLabel()
+    {
+        if (Utils::isNinjaProd()) {
+            return false;
+        }
+
+        $account = \App\Models\Account::first();
+
+        return $account && $account->hasFeature(FEATURE_WHITE_LABEL);
+    }
+
     public static function getResllerType()
     {
         return isset($_ENV['RESELLER_TYPE']) ? $_ENV['RESELLER_TYPE'] : false;
@@ -149,6 +165,11 @@ class Utils
         return Auth::check() && Auth::user()->isTrial();
     }
 
+    public static function isPaidPro()
+    {
+        return static::isPro() && ! static::isTrial();
+    }
+
     public static function isEnglish()
     {
         return App::getLocale() == 'en';
@@ -189,19 +210,6 @@ class Utils
         return $response;
     }
 
-    public static function getLastURL()
-    {
-        if (!count(Session::get(RECENTLY_VIEWED))) {
-            return '#';
-        }
-
-        $history = Session::get(RECENTLY_VIEWED);
-        $last = $history[0];
-        $penultimate = count($history) > 1 ? $history[1] : $last;
-
-        return Request::url() == $last->url ? $penultimate->url : $last->url;
-    }
-
     public static function getProLabel($feature)
     {
         if (Auth::check()
@@ -213,20 +221,64 @@ class Utils
         }
     }
 
+    public static function getPlanPrice($plan)
+    {
+        $term = $plan['term'];
+        $numUsers = $plan['num_users'];
+        $plan = $plan['plan'];
+
+        if ($plan == PLAN_FREE) {
+            $price = 0;
+        } elseif ($plan == PLAN_PRO) {
+            $price = PLAN_PRICE_PRO_MONTHLY;
+        } elseif ($plan == PLAN_ENTERPRISE) {
+            if ($numUsers <= 2) {
+                $price = PLAN_PRICE_ENTERPRISE_MONTHLY_2;
+            } elseif ($numUsers <= 5) {
+                $price = PLAN_PRICE_ENTERPRISE_MONTHLY_5;
+            } elseif ($numUsers <= 10) {
+                $price = PLAN_PRICE_ENTERPRISE_MONTHLY_10;
+            } else {
+                static::fatalError('Invalid number of users: ' . $numUsers);
+            }
+        }
+
+        if ($term == PLAN_TERM_YEARLY) {
+            $price = $price * 10;
+        }
+
+        return $price;
+    }
+
+    public static function getMinNumUsers($max)
+    {
+        if ($max <= 2) {
+            return 1;
+        } elseif ($max <= 5) {
+            return 3;
+        } else {
+            return 6;
+        }
+    }
+
     public static function basePath()
     {
         return substr($_SERVER['SCRIPT_NAME'], 0, strrpos($_SERVER['SCRIPT_NAME'], '/') + 1);
     }
 
-    public static function trans($input)
+    public static function trans($input, $module = false)
     {
         $data = [];
 
         foreach ($input as $field) {
-            if ($field == "checkbox") {
+            if ($field == 'checkbox') {
                 $data[] = $field;
             } elseif ($field) {
-                $data[] = trans("texts.$field");
+                if ($module) {
+                    $data[] = mtrans($module, $field);
+                } else {
+                    $data[] = trans("texts.$field");
+                }
             } else {
                 $data[] = '';
             }
@@ -238,7 +290,7 @@ class Utils
     public static function fatalError($message = false, $exception = false)
     {
         if (!$message) {
-            $message = "An error occurred, please try again later.";
+            $message = 'An error occurred, please try again later.';
         }
 
         static::logError($message.' '.$exception);
@@ -325,14 +377,16 @@ class Utils
         return $data->first();
     }
 
-    public static function formatMoney($value, $currencyId = false, $countryId = false, $showCode = false)
+    public static function formatMoney($value, $currencyId = false, $countryId = false, $decorator = false)
     {
-        if (!$value) {
-            $value = 0;
-        }
+        $value = floatval($value);
 
         if (!$currencyId) {
             $currencyId = Session::get(SESSION_CURRENCY, DEFAULT_CURRENCY);
+        }
+
+        if (!$decorator) {
+            $decorator = Session::get(SESSION_CURRENCY_DECORATOR, CURRENCY_DECORATOR_SYMBOL);
         }
 
         if (!$countryId && Auth::check()) {
@@ -360,7 +414,9 @@ class Utils
         $value = number_format($value, $precision, $decimal, $thousand);
         $symbol = $currency->symbol;
 
-        if ($showCode || !$symbol) {
+        if ($decorator == CURRENCY_DECORATOR_NONE) {
+            return $value;
+        } elseif ($decorator == CURRENCY_DECORATOR_CODE || ! $symbol) {
             return "{$value} {$code}";
         } elseif ($swapSymbol) {
             return "{$value} " . trim($symbol);
@@ -375,6 +431,21 @@ class Utils
         $string = trans("texts.$field", ['count' => $count]);
 
         return $string;
+    }
+
+    public static function pluralizeEntityType($type)
+    {
+        if ( ! Utils::isNinjaProd()) {
+            if ($module = \Module::find($type)) {
+                return $module->get('plural', $type);
+            }
+        }
+
+        if ($type === ENTITY_EXPENSE_CATEGORY) {
+            return 'expense_categories';
+        } else {
+            return $type . 's';
+        }
     }
 
     public static function maskAccountNumber($value)
@@ -534,7 +605,7 @@ class Utils
     {
         // http://stackoverflow.com/a/3172665
         $f = ':';
-        return sprintf("%02d%s%02d%s%02d", floor($t/3600), $f, ($t/60)%60, $f, $t%60);
+        return sprintf('%02d%s%02d%s%02d', floor($t/3600), $f, ($t/60)%60, $f, $t%60);
     }
 
     public static function today($formatResult = true)
@@ -549,51 +620,6 @@ class Utils
         } else {
             return $date;
         }
-    }
-
-    public static function trackViewed($name, $type, $url = false)
-    {
-        if (!$url) {
-            $url = Request::url();
-        }
-
-        $viewed = Session::get(RECENTLY_VIEWED);
-
-        if (!$viewed) {
-            $viewed = [];
-        }
-
-        $object = new stdClass();
-        $object->accountId = Auth::user()->account_id;
-        $object->url = $url;
-        $object->name = ucwords($type).': '.$name;
-
-        $data = [];
-        $counts = [];
-
-        for ($i = 0; $i<count($viewed); $i++) {
-            $item = $viewed[$i];
-
-            if ($object->url == $item->url || $object->name == $item->name) {
-                continue;
-            }
-
-            array_push($data, $item);
-
-            if (isset($counts[$item->accountId])) {
-                $counts[$item->accountId]++;
-            } else {
-                $counts[$item->accountId] = 1;
-            }
-        }
-
-        array_unshift($data, $object);
-
-        if (isset($counts[Auth::user()->account_id]) && $counts[Auth::user()->account_id] > RECENTLY_VIEWED_LIMIT) {
-            array_pop($data);
-        }
-
-        Session::put(RECENTLY_VIEWED, $data);
     }
 
     public static function processVariables($str)
@@ -644,11 +670,22 @@ class Utils
         }
     }
 
+    public static function getMonthOptions()
+    {
+        $months = [];
+
+        for ($i=1; $i<=count(static::$months); $i++) {
+            $month = static::$months[$i-1];
+            $number = $i < 10 ? '0' . $i : $i;
+            $months["2000-{$number}-01"] = trans("texts.{$month}");
+        }
+
+        return $months;
+    }
+
     private static function getMonth($offset)
     {
-        $months = [ "january", "february", "march", "april", "may", "june",
-            "july", "august", "september", "october", "november", "december", ];
-
+        $months = static::$months;
         $month = intval(date('n')) - 1;
 
         $month += $offset;
@@ -681,11 +718,6 @@ class Utils
         return $year + $offset;
     }
 
-    public static function getEntityClass($entityType)
-    {
-        return 'App\\Models\\' . static::getEntityName($entityType);
-    }
-
     public static function getEntityName($entityType)
     {
         return ucwords(Utils::toCamelCase($entityType));
@@ -698,7 +730,7 @@ class Utils
         } elseif ($model->first_name || $model->last_name) {
             return $model->first_name.' '.$model->last_name;
         } else {
-            return $model->email;
+            return $model->email ?: '';
         }
     }
 
@@ -800,12 +832,12 @@ class Utils
 
     public static function startsWith($haystack, $needle)
     {
-        return $needle === "" || strpos($haystack, $needle) === 0;
+        return $needle === '' || strpos($haystack, $needle) === 0;
     }
 
     public static function endsWith($haystack, $needle)
     {
-        return $needle === "" || substr($haystack, -strlen($needle)) === $needle;
+        return $needle === '' || substr($haystack, -strlen($needle)) === $needle;
     }
 
     public static function getEntityRowClass($model)
@@ -852,6 +884,7 @@ class Utils
     }
 
     // nouns in German and French should be uppercase
+    // TODO remove this
     public static function transFlowText($key)
     {
         $str = trans("texts.$key");
@@ -909,7 +942,7 @@ class Utils
         $name = trim($name);
         $lastName = (strpos($name, ' ') === false) ? '' : preg_replace('#.*\s([\w-]*)$#', '$1', $name);
         $firstName = trim(preg_replace('#'.$lastName.'#', '', $name));
-        return array($firstName, $lastName);
+        return [$firstName, $lastName];
     }
 
     public static function decodePDF($string)
@@ -952,7 +985,7 @@ class Utils
             $link = $prefix.$link;
         }
 
-        return link_to($link, $title, array('target' => '_blank'));
+        return link_to($link, $title, ['target' => '_blank']);
     }
 
     public static function wrapAdjustment($adjustment, $currencyId, $countryId)
@@ -990,8 +1023,8 @@ class Utils
 
     public static function addHttp($url)
     {
-        if (!preg_match("~^(?:f|ht)tps?://~i", $url)) {
-            $url = "http://" . $url;
+        if (!preg_match('~^(?:f|ht)tps?://~i', $url)) {
+            $url = 'http://' . $url;
         }
 
         return $url;
@@ -1012,5 +1045,107 @@ class Utils
         } else {
             return new WePay(null);
         }
+    }
+
+    /**
+     * Gets an array of weekday names (in English)
+     *
+     * @see getTranslatedWeekdayNames()
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    public static function getWeekdayNames()
+    {
+        return collect(static::$weekdayNames);
+    }
+
+    /**
+     * Gets an array of translated weekday names
+     *
+     * @return \Illuminate\Support\Collection
+     */
+    public static function getTranslatedWeekdayNames()
+    {
+        return collect(static::$weekdayNames)->transform(function ($day) {
+             return trans('texts.'.strtolower($day));
+        });
+    }
+
+    public static function getReadableUrl($path)
+    {
+        $url = static::getDocsUrl($path);
+
+        $parts = explode('/', $url);
+        $part = $parts[count($parts) - 1];
+        $part = str_replace('#', '> ', $part);
+        $part = str_replace(['.html', '-', '_'], ' ', $part);
+
+        if ($part) {
+            return trans('texts.user_guide') . ': ' . ucwords($part);
+        } else {
+            return trans('texts.user_guide');
+        }
+    }
+
+    public static function getDocsUrl($path)
+    {
+        $page = '';
+        $parts = explode('/', $path);
+        $first = count($parts) ? $parts[0] : false;
+        $second = count($parts) > 1 ? $parts[1] : false;
+
+        $entityTypes = [
+            'clients',
+            'invoices',
+            'payments',
+            'recurring_invoices',
+            'credits',
+            'quotes',
+            'tasks',
+            'expenses',
+            'vendors',
+        ];
+
+        if ($path == 'dashboard') {
+            $page = '/introduction.html#dashboard';
+        } elseif (in_array($path, $entityTypes)) {
+            $page = "/{$path}.html#list-" . str_replace('_', '-', $path);
+        } elseif (in_array($first, $entityTypes)) {
+            $action = ($first == 'payments' || $first == 'credits') ? 'enter' : 'create';
+            $page = "/{$first}.html#{$action}-" . substr(str_replace('_', '-', $first), 0, -1);
+        } elseif ($first == 'expense_categories') {
+            $page = '/expenses.html#expense-categories';
+        } elseif ($first == 'settings') {
+            if ($second == 'bank_accounts') {
+                $page = ''; // TODO write docs
+            } elseif (in_array($second, \App\Models\Account::$basicSettings)) {
+                if ($second == 'products') {
+                    $second = 'product_library';
+                } elseif ($second == 'notifications') {
+                    $second = 'email_notifications';
+                }
+                $page = '/settings.html#' . str_replace('_', '-', $second);
+            } elseif (in_array($second, \App\Models\Account::$advancedSettings)) {
+                $page = "/{$second}.html";
+            } elseif ($second == 'customize_design') {
+                $page = '/invoice_design.html#customize';
+            }
+        } elseif ($first == 'tax_rates') {
+            $page = '/settings.html#tax-rates';
+        } elseif ($first == 'products') {
+            $page = '/settings.html#product-library';
+        } elseif ($first == 'users') {
+            $page = '/user_management.html#create-user';
+        }
+
+        return url(NINJA_DOCS_URL . $page);
+    }
+
+    public static function calculateTaxes($amount, $taxRate1, $taxRate2)
+    {
+        $tax1 = round($amount * $taxRate1 / 100, 2);
+        $tax2 = round($amount * $taxRate2 / 100, 2);
+
+        return round($amount + $tax1 + $tax2, 2);
     }
 }

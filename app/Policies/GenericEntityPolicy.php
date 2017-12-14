@@ -2,39 +2,87 @@
 
 namespace App\Policies;
 
-use App\Models\User;
-use Utils;
 
+use Utils;
+use App\Models\User;
+use Illuminate\Support\Str;
 use Illuminate\Auth\Access\HandlesAuthorization;
 
+/**
+ * Class GenericEntityPolicy
+ */
 class GenericEntityPolicy
 {
     use HandlesAuthorization;
-    
-    public static function editByOwner($user, $itemType, $ownerUserId) {
-        $itemType = Utils::getEntityName($itemType);
-        if (method_exists("App\\Policies\\{$itemType}Policy", 'editByOwner')) {
-            return call_user_func(array("App\\Policies\\{$itemType}Policy", 'editByOwner'), $user, $ownerUserId);
+
+    /**
+     * @param User $user
+     * @param $entityType
+     * @param $ownerUserId
+     * @return bool|mixed
+     */
+    public static function editByOwner(User $user, $entityType, $ownerUserId) {
+        $className = static::className($entityType);
+        if (method_exists($className, 'editByOwner')) {
+            return call_user_func([$className, 'editByOwner'], $user, $ownerUserId);
         }
-        
+
         return false;
     }
-    
-    public static function viewByOwner($user, $itemType, $ownerUserId) {
-        $itemType = Utils::getEntityName($itemType);
-        if (method_exists("App\\Policies\\{$itemType}Policy", 'viewByOwner')) {
-            return call_user_func(array("App\\Policies\\{$itemType}Policy", 'viewByOwner'), $user, $ownerUserId);
+
+    /**
+     * @param User $user
+     * @param $entityTypee
+     * @param $ownerUserId
+     * @return bool|mixed
+     */
+    public static function viewByOwner(User $user, $entityType, $ownerUserId) {
+        $className = static::className($entityType);
+        if (method_exists($className, 'viewByOwner')) {
+            return call_user_func([$className, 'viewByOwner'], $user, $ownerUserId);
         }
-        
+
         return false;
     }
-    
-    public static function create($user, $itemType) {
-        $itemType = Utils::getEntityName($itemType);
-        if (method_exists("App\\Policies\\{$itemType}Policy", 'create')) {
-            return call_user_func(array("App\\Policies\\{$itemType}Policy", 'create'), $user);
+
+    /**
+     * @param User $user
+     * @param $entityType
+     * @return bool|mixed
+     */
+    public static function create(User $user, $entityType) {
+        $className = static::className($entityType);
+        if (method_exists($className, 'create')) {
+            return call_user_func([$className, 'create'], $user, $entityType);
         }
-        
+
         return false;
     }
+
+    /**
+     * @param User $user
+     * @param $entityType
+     * @return bool|mixed
+     */
+    public static function view(User $user, $entityType) {
+        $className = static::className($entityType);
+        if (method_exists($className, 'view')) {
+            return call_user_func([$className, 'view'], $user, $entityType);
+        }
+
+        return false;
+    }
+
+    private static function className($entityType)
+    {
+        if ( ! Utils::isNinjaProd()) {
+            if ($module = \Module::find($entityType)) {
+                return "Modules\\{$module->getName()}\\Policies\\{$module->getName()}Policy";
+            }
+        }
+
+        $studly = Str::studly($entityType);
+        return "App\\Policies\\{$studly}Policy";
+    }
+
 }

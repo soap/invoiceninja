@@ -1,24 +1,29 @@
 <?php namespace App\Http\Middleware;
 
 use DB;
+use Illuminate\Http\Request;
 use Log;
 use Utils;
 use Closure;
 
+/**
+ * Class QueryLogging
+ */
 class QueryLogging
 {
     /**
      * Handle an incoming request.
      *
-     * @param  \Illuminate\Http\Request $request
-     * @param  \Closure                 $next
+     * @param  Request $request
+     * @param  Closure $next
      * @return mixed
      */
-    public function handle($request, Closure $next)
+    public function handle(Request $request, Closure $next)
     {
         // Enable query logging for development
         if (Utils::isNinjaDev()) {
             DB::enableQueryLog();
+            $timeStart = microtime(true);
         }
 
         $response = $next($request);
@@ -28,8 +33,10 @@ class QueryLogging
             if (strstr($request->url(), '_debugbar') === false) {
                 $queries = DB::getQueryLog();
                 $count = count($queries);
-                Log::info($request->method() . ' - ' . $request->url() . ": $count queries");
-                //Log::info(json_encode($queries));
+                $timeEnd = microtime(true);
+                $time = $timeEnd - $timeStart;
+                Log::info($request->method() . ' - ' . $request->url() . ": $count queries - " . $time);
+                //Log::info($queries);
             }
         }
 

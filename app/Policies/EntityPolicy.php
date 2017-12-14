@@ -3,31 +3,77 @@
 namespace App\Policies;
 
 use App\Models\User;
-use App\Models\EntityModel;
-
 use Illuminate\Auth\Access\HandlesAuthorization;
 
+/**
+ * Class EntityPolicy
+ */
 class EntityPolicy
 {
     use HandlesAuthorization;
-    
-    public static function create($user) {
+
+    /**
+     * @param User $user
+     * @return bool
+     */
+    public static function create(User $user, $item) {
+        if ( ! static::checkModuleEnabled($user, $item)) {
+            return false;
+        }
+
         return $user->hasPermission('create_all');
     }
-    
-    public static function edit($user, $item) {
+
+    /**
+     * @param User $user
+     * @param $item
+     *
+     * @return bool
+     */
+    public static function edit(User $user, $item) {
+        if ( ! static::checkModuleEnabled($user, $item)) {
+            return false;
+        }
+
         return $user->hasPermission('edit_all') || $user->owns($item);
     }
-    
-    public static function view($user, $item) {
+
+    /**
+     * @param User $user
+     * @param $item
+     *
+     * @return bool
+     */
+    public static function view(User $user, $item) {
+        if ( ! static::checkModuleEnabled($user, $item)) {
+            return false;
+        }
+
         return $user->hasPermission('view_all') || $user->owns($item);
     }
-    
-    public static function viewByOwner($user, $ownerUserId) {
+
+    /**
+     * @param User $user
+     * @param $ownerUserId
+     * @return bool
+     */
+    public static function viewByOwner(User $user, $ownerUserId) {
         return $user->hasPermission('view_all') || $user->id == $ownerUserId;
     }
-    
-    public static function editByOwner($user, $ownerUserId) {
+
+    /**
+     * @param User $user
+     * @param $ownerUserId
+     * @return bool
+     */
+    public static function editByOwner(User $user, $ownerUserId) {
         return $user->hasPermission('edit_all') || $user->id == $ownerUserId;
+    }
+
+    private static function checkModuleEnabled(User $user, $item)
+    {
+        $entityType = is_string($item) ? $item : $item->getEntityType();
+        
+        return $user->account->isModuleEnabled($entityType);
     }
 }

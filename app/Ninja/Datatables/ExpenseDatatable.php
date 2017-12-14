@@ -3,10 +3,12 @@
 use Utils;
 use URL;
 use Auth;
+use App\Models\Expense;
 
 class ExpenseDatatable extends EntityDatatable
 {
     public $entityType = ENTITY_EXPENSE;
+    public $sortCol = 3;
 
     public function columns()
     {
@@ -46,7 +48,7 @@ class ExpenseDatatable extends EntityDatatable
             [
                 'expense_date',
                 function ($model) {
-                    if(!Auth::user()->can('editByOwner', [ENTITY_EXPENSE, $model->user_id])){
+                    if(!Auth::user()->can('viewByOwner', [ENTITY_EXPENSE, $model->user_id])){
                         return Utils::fromSqlDate($model->expense_date);
                     }
 
@@ -56,14 +58,22 @@ class ExpenseDatatable extends EntityDatatable
             [
                 'amount',
                 function ($model) {
+                    $amount = Utils::calculateTaxes($model->amount, $model->tax_rate1, $model->tax_rate2);
+                    $str = Utils::formatMoney($amount, $model->expense_currency_id);
+
                     // show both the amount and the converted amount
                     if ($model->exchange_rate != 1) {
-                        $converted = round($model->amount * $model->exchange_rate, 2);
-                        return Utils::formatMoney($model->amount, $model->expense_currency_id) . ' | ' .
-                            Utils::formatMoney($converted, $model->invoice_currency_id);
-                    } else {
-                        return Utils::formatMoney($model->amount, $model->expense_currency_id);
+                        $converted = round($amount * $model->exchange_rate, 2);
+                        $str .= ' | ' . Utils::formatMoney($converted, $model->invoice_currency_id);
                     }
+
+                    return $str;
+                }
+            ],
+            [
+                'category',
+                function ($model) {
+                    return $model->category != null ? substr($model->category, 0, 100) : '';
                 }
             ],
             [
@@ -73,9 +83,9 @@ class ExpenseDatatable extends EntityDatatable
                 }
             ],
             [
-                'expense_status_id',
+                'status',
                 function ($model) {
-                    return self::getStatusLabel($model->invoice_id, $model->should_be_invoiced);
+                    return self::getStatusLabel($model->invoice_id, $model->should_be_invoiced, $model->balance);
                 }
             ],
         ];
@@ -105,7 +115,7 @@ class ExpenseDatatable extends EntityDatatable
             [
                 trans('texts.invoice_expense'),
                 function ($model) {
-                    return "javascript:invoiceEntity({$model->public_id})";
+                    return "javascript:submitForm_expense('invoice', {$model->public_id})";
                 },
                 function ($model) {
                     return ! $model->invoice_id && (!$model->deleted_at || $model->deleted_at == '0000-00-00') && Auth::user()->can('create', ENTITY_INVOICE);
@@ -114,19 +124,10 @@ class ExpenseDatatable extends EntityDatatable
         ];
     }
 
-
-    private function getStatusLabel($invoiceId, $shouldBeInvoiced)
+    private function getStatusLabel($invoiceId, $shouldBeInvoiced, $balance)
     {
-        if ($invoiceId) {
-            $label = trans('texts.invoiced');
-            $class = 'success';
-        } elseif ($shouldBeInvoiced) {
-            $label = trans('texts.pending');
-            $class = 'warning';
-        } else {
-            $label = trans('texts.logged');
-            $class = 'primary';
-        }
+        $label = Expense::calcStatusLabel($shouldBeInvoiced, $invoiceId, $balance);
+        $class = Expense::calcStatusClass($shouldBeInvoiced, $invoiceId, $balance);
 
         return "<h4><div class=\"label label-{$class}\">$label</div></h4>";
     }

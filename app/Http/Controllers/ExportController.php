@@ -12,12 +12,22 @@ use App\Models\Contact;
 use App\Models\Credit;
 use App\Models\Task;
 use App\Models\Invoice;
+use App\Models\Product;
 use App\Models\Payment;
+use App\Models\Expense;
 use App\Models\Vendor;
 use App\Models\VendorContact;
 
+/**
+ * Class ExportController
+ */
 class ExportController extends BaseController
 {
+    /**
+     * @param Request $request
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function doExport(Request $request)
     {
         $format = $request->input('format');
@@ -33,6 +43,12 @@ class ExportController extends BaseController
         }
     }
 
+    /**
+     * @param $request
+     * @param $fileName
+     *
+     * @return \Illuminate\Http\JsonResponse
+     */
     private function returnJSON($request, $fileName)
     {
         $output = fopen('php://output', 'w') or Utils::fatalError();
@@ -42,16 +58,32 @@ class ExportController extends BaseController
         $manager = new Manager();
         $manager->setSerializer(new ArraySerializer());
 
+        // eager load data, include archived but exclude deleted
         $account = Auth::user()->account;
-        $account->loadAllData();
+        $account->load(['clients' => function($query) {
+            $query->withArchived()
+                  ->with(['contacts', 'invoices' => function($query) {
+                      $query->withArchived()
+                            ->with(['invoice_items', 'payments' => function($query) {
+                                $query->withArchived();
+                            }]);
+                  }]);
+        }]);
 
         $resource = new Item($account, new AccountTransformer);
-        $data = $manager->createData($resource)->toArray();
+        $data = $manager->parseIncludes('clients.invoices.payments')
+                    ->createData($resource)
+                    ->toArray();
 
         return response()->json($data);
     }
 
-
+    /**
+     * @param $request
+     * @param $fileName
+     *
+     * @return mixed
+     */
     private function returnCSV($request, $fileName)
     {
         $data = $this->getData($request);
@@ -63,6 +95,12 @@ class ExportController extends BaseController
         })->download('csv');
     }
 
+    /**
+     * @param $request
+     * @param $fileName
+     *
+     * @return mixed
+     */
     private function returnXLS($request, $fileName)
     {
         $user = Auth::user();
@@ -92,6 +130,7 @@ class ExportController extends BaseController
                     if ($key === 'quotes') {
                         $key = 'invoices';
                         $data['entityType'] = ENTITY_QUOTE;
+                        $data['invoices'] = $data['quotes'];
                     }
                     $sheet->loadView("export.{$key}", $data);
                 });
@@ -99,6 +138,11 @@ class ExportController extends BaseController
         })->download('xls');
     }
 
+    /**
+     * @param $request
+     *
+     * @return array
+     */
     private function getData($request)
     {
         $account = Auth::user()->account;
@@ -109,44 +153,52 @@ class ExportController extends BaseController
             'multiUser' => $account->users->count() > 1
         ];
 
-        if ($request->input(ENTITY_CLIENT)) {
+        if ($request->input('include') === 'all' || $request->input('clients')) {
             $data['clients'] = Client::scope()
                 ->with('user', 'contacts', 'country')
                 ->withArchived()
                 ->get();
+        }
 
+        if ($request->input('include') === 'all' || $request->input('contacts')) {
             $data['contacts'] = Contact::scope()
                 ->with('user', 'client.contacts')
                 ->withTrashed()
                 ->get();
+        }
 
+        if ($request->input('include') === 'all' || $request->input('credits')) {
             $data['credits'] = Credit::scope()
                 ->with('user', 'client.contacts')
                 ->get();
         }
 
-        if ($request->input(ENTITY_TASK)) {
+        if ($request->input('include') === 'all' || $request->input('tasks')) {
             $data['tasks'] = Task::scope()
                 ->with('user', 'client.contacts')
                 ->withArchived()
                 ->get();
         }
 
-        if ($request->input(ENTITY_INVOICE)) {
+        if ($request->input('include') === 'all' || $request->input('invoices')) {
             $data['invoices'] = Invoice::scope()
                 ->invoiceType(INVOICE_TYPE_STANDARD)
                 ->with('user', 'client.contacts', 'invoice_status')
                 ->withArchived()
                 ->where('is_recurring', '=', false)
                 ->get();
+        }
 
+        if ($request->input('include') === 'all' || $request->input('quotes')) {
             $data['quotes'] = Invoice::scope()
                 ->invoiceType(INVOICE_TYPE_QUOTE)
                 ->with('user', 'client.contacts', 'invoice_status')
                 ->withArchived()
                 ->where('is_recurring', '=', false)
                 ->get();
+        }
 
+        if ($request->input('include') === 'all' || $request->input('recurring')) {
             $data['recurringInvoices'] = Invoice::scope()
                 ->invoiceType(INVOICE_TYPE_STANDARD)
                 ->with('user', 'client.contacts', 'invoice_status', 'frequency')
@@ -155,30 +207,38 @@ class ExportController extends BaseController
                 ->get();
         }
 
-        if ($request->input(ENTITY_PAYMENT)) {
+        if ($request->input('include') === 'all' || $request->input('payments')) {
             $data['payments'] = Payment::scope()
                 ->withArchived()
                 ->with('user', 'client.contacts', 'payment_type', 'invoice', 'account_gateway.gateway')
                 ->get();
         }
 
+        if ($request->input('include') === 'all' || $request->input('expenses')) {
+            $data['expenses'] = Expense::scope()
+                ->with('user', 'vendor.vendor_contacts', 'client.contacts', 'expense_category')
+                ->withArchived()
+                ->get();
+        }
 
-        if ($request->input(ENTITY_VENDOR)) {
-            $data['clients'] = Vendor::scope()
+        if ($request->input('include') === 'all' || $request->input('products')) {
+            $data['products'] = Product::scope()
+                ->withArchived()
+                ->get();
+        }
+
+        if ($request->input('include') === 'all' || $request->input('vendors')) {
+            $data['vendors'] = Vendor::scope()
                 ->with('user', 'vendor_contacts', 'country')
                 ->withArchived()
                 ->get();
+        }
 
+        if ($request->input('include') === 'all' || $request->input('vendor_contacts')) {
             $data['vendor_contacts'] = VendorContact::scope()
                 ->with('user', 'vendor.vendor_contacts')
                 ->withTrashed()
                 ->get();
-
-            /*
-            $data['expenses'] = Credit::scope()
-                ->with('user', 'client.contacts')
-                ->get();
-            */
         }
 
         return $data;

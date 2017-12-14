@@ -1,68 +1,80 @@
 <?php namespace App\Models;
 
 use Cache;
-use Eloquent;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * Class PaymentMethod
+ */
 class PaymentMethod extends EntityModel
 {
     use SoftDeletes;
 
-    protected $dates = ['deleted_at'];
+    /**
+     * @var bool
+     */
     public $timestamps = true;
+
+    /**
+     * @var array
+     */
+    protected $dates = ['deleted_at'];
+    /**
+     * @var array
+     */
     protected $hidden = ['id'];
 
-    public static function createNew($accountGatewayToken = null)
-    {
-        $entity = new PaymentMethod();
-
-        $entity->account_id = $accountGatewayToken->account_id;
-        $entity->account_gateway_token_id = $accountGatewayToken->id;
-
-        $lastEntity = static::scope(false, $entity->account_id);
-
-        $lastEntity = $lastEntity->orderBy('public_id', 'DESC')
-            ->first();
-
-        if ($lastEntity) {
-            $entity->public_id = $lastEntity->public_id + 1;
-        } else {
-            $entity->public_id = 1;
-        }
-
-        return $entity;
-    }
-
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function account()
     {
         return $this->belongsTo('App\Models\Account');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function contact()
     {
         return $this->belongsTo('App\Models\Contact');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function account_gateway_token()
     {
         return $this->belongsTo('App\Models\AccountGatewayToken');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function payment_type()
     {
         return $this->belongsTo('App\Models\PaymentType');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
     public function currency()
     {
         return $this->belongsTo('App\Models\Currency');
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
     public function payments()
     {
         return $this->hasMany('App\Models\Payments');
     }
 
+    /**
+     * @return mixed|null|\stdClass|string
+     */
     public function getBankDataAttribute()
     {
         if (!$this->routing_number) {
@@ -71,22 +83,66 @@ class PaymentMethod extends EntityModel
         return static::lookupBankData($this->routing_number);
     }
 
+    /**
+     * @param $bank_name
+     * @return null
+     */
+    public function getBankNameAttribute($bank_name)
+    {
+        if ($bank_name) {
+            return $bank_name;
+        }
+        $bankData = $this->bank_data;
+
+        return $bankData?$bankData->name:null;
+    }
+
+    /**
+     * @param $value
+     * @return null|string
+     */
     public function getLast4Attribute($value)
     {
         return $value ? str_pad($value, 4, '0', STR_PAD_LEFT) : null;
     }
 
-    public function scopeScope($query, $publicId = false, $accountId = false, $accountGatewayTokenId = false)
+    /**
+     * @param $query
+     * @param $clientId
+     * @return mixed
+     */
+    public function scopeClientId($query, $clientId)
     {
-        $query = parent::scopeScope($query, $publicId, $accountId);
-
-        if ($accountGatewayTokenId) {
-            $query->where($this->getTable() . '.account_gateway_token_id', '=', $accountGatewayTokenId);
-        }
-
-        return $query;
+        $query->whereHas('contact', function($query) use ($clientId) {
+            $query->whereClientId($clientId);
+        });
     }
 
+    /**
+     * @param $query
+     * @param $isBank
+     */
+    public function scopeIsBankAccount($query, $isBank)
+    {
+        if ($isBank) {
+            $query->where('payment_type_id', '=', PAYMENT_TYPE_ACH);
+        } else {
+            $query->where('payment_type_id', '!=', PAYMENT_TYPE_ACH);
+        }
+    }
+
+    /**
+     * @return \Illuminate\Contracts\Routing\UrlGenerator|string
+     */
+    public function imageUrl()
+    {
+        return url(sprintf('/images/credit_cards/%s.png', str_replace(' ', '', strtolower($this->payment_type->name))));
+    }
+
+    /**
+     * @param $routingNumber
+     * @return mixed|null|\stdClass|string
+     */
     public static function lookupBankData($routingNumber) {
         $cached = Cache::get('bankData:'.$routingNumber);
 
@@ -146,6 +202,28 @@ class PaymentMethod extends EntityModel
         } else {
             Cache::put('bankData:'.$routingNumber, false, 5);
             return null;
+        }
+    }
+
+    /**
+     * @return bool
+     */
+    public function requiresDelayedAutoBill()
+    {
+        return $this->payment_type_id == PAYMENT_TYPE_ACH;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function gatewayType()
+    {
+        if ($this->payment_type_id == PAYMENT_TYPE_ACH) {
+            return GATEWAY_TYPE_BANK_TRANSFER;
+        } elseif ($this->payment_type_id == PAYMENT_TYPE_PAYPAL) {
+            return GATEWAY_TYPE_PAYPAL;
+        } else {
+            return GATEWAY_TYPE_TOKEN;
         }
     }
 }

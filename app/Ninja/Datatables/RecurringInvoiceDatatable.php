@@ -14,7 +14,9 @@ class RecurringInvoiceDatatable extends EntityDatatable
             [
                 'frequency',
                 function ($model) {
-                    return link_to("invoices/{$model->public_id}", $model->frequency)->toHtml();
+                    $frequency = strtolower($model->frequency);
+                    $frequency = preg_replace('/\s/', '_', $frequency);
+                    return link_to("invoices/{$model->public_id}", trans('texts.freq_'.$frequency))->toHtml();
                 }
             ],
             [
@@ -56,7 +58,17 @@ class RecurringInvoiceDatatable extends EntityDatatable
                 function ($model) {
                     return Auth::user()->can('editByOwner', [ENTITY_INVOICE, $model->user_id]);
                 }
-            ]
+            ],
+            [
+                trans("texts.clone_invoice"),
+                function ($model) {
+                    return URL::to("invoices/{$model->public_id}/clone");
+                },
+                function ($model) {
+                    return Auth::user()->can('create', ENTITY_INVOICE);
+                }
+            ],
+
         ];
     }
 

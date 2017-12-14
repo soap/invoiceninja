@@ -6,27 +6,21 @@ use Redirect;
 use Utils;
 use View;
 use Cache;
-use Event;
 use Session;
 use App\Models\Account;
 use App\Models\Client;
 use App\Models\Country;
-use App\Models\Currency;
-use App\Models\Industry;
 use App\Models\InvoiceDesign;
-use App\Models\PaymentTerm;
 use App\Models\Product;
-use App\Models\Size;
 use App\Models\TaxRate;
 use App\Models\Invitation;
-use App\Models\Activity;
 use App\Models\Invoice;
 use App\Ninja\Mailers\ContactMailer as Mailer;
 use App\Ninja\Repositories\InvoiceRepository;
 use App\Ninja\Repositories\ClientRepository;
-use App\Events\QuoteInvitationWasApproved;
 use App\Services\InvoiceService;
 use App\Http\Requests\InvoiceRequest;
+use App\Ninja\Datatables\InvoiceDatatable;
 
 class QuoteController extends BaseController
 {
@@ -48,27 +42,16 @@ class QuoteController extends BaseController
 
     public function index()
     {
-        if (!Utils::hasFeature(FEATURE_QUOTES)) {
-            return Redirect::to('/invoices/create');
-        }
+        $datatable = new InvoiceDatatable();
+        $datatable->entityType = ENTITY_QUOTE;
 
         $data = [
           'title' => trans('texts.quotes'),
           'entityType' => ENTITY_QUOTE,
-          'sortCol' => '3',
-          'columns' => Utils::trans([
-            'checkbox',
-            'quote_number',
-            'client',
-            'quote_date',
-            'quote_total',
-            'valid_until',
-            'status',
-            'action'
-          ]),
+          'datatable' => $datatable,
         ];
 
-        return response()->view('list', $data);
+        return response()->view('list_wrapper', $data);
     }
 
     public function getDatatable($clientPublicId = null)
@@ -126,11 +109,11 @@ class QuoteController extends BaseController
         return [
           'entityType' => ENTITY_QUOTE,
           'account' => Auth::user()->account,
-          'products' => Product::scope()->orderBy('id')->get(array('product_key', 'notes', 'cost', 'qty')),
+          'products' => Product::scope()->orderBy('id')->get(['product_key', 'notes', 'cost', 'qty']),
           'taxRateOptions' => $options,
           'defaultTax' => $defaultTax,
           'countries' => Cache::get('countries'),
-          'clients' => Client::scope()->viewable()->with('contacts', 'country')->orderBy('name')->get(),
+          'clients' => Client::scope()->with('contacts', 'country')->orderBy('name')->get(),
           'taxRates' => TaxRate::scope()->orderBy('name')->get(),
           'currencies' => Cache::get('currencies'),
           'sizes' => Cache::get('sizes'),
@@ -160,16 +143,12 @@ class QuoteController extends BaseController
         $count = $this->invoiceService->bulk($ids, $action);
 
         if ($count > 0) {
-            $key = $action == 'markSent' ? "updated_quote" : "{$action}d_quote";
+            $key = $action == 'markSent' ? 'updated_quote' : "{$action}d_quote";
             $message = Utils::pluralize($key, $count);
             Session::flash('message', $message);
         }
 
-        if ($action == 'restore' && $count == 1) {
-            return Redirect::to("quotes/".Utils::getFirst($ids));
-        } else {
-            return Redirect::to("quotes");
-        }
+        return $this->returnBulk(ENTITY_QUOTE, $action, $ids);
     }
 
     public function approve($invitationKey)

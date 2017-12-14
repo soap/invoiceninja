@@ -1,7 +1,7 @@
 <?php namespace App\Http\Middleware;
 
-use Request;
 use Closure;
+use Illuminate\Http\Request;
 use Utils;
 use App;
 use Auth;
@@ -13,29 +13,33 @@ use Event;
 use Schema;
 use App\Models\Language;
 use App\Models\InvoiceDesign;
-use App\Events\UserSettingsChanged;
+use App\Events\UserLoggedIn;
+use App\Libraries\CurlUtils;
 
+/**
+ * Class StartupCheck
+ */
 class StartupCheck
 {
     /**
      * Handle an incoming request.
      *
-     * @param  \Illuminate\Http\Request $request
-     * @param  \Closure                 $next
+     * @param  Request $request
+     * @param  Closure $next
      * @return mixed
      */
-    public function handle($request, Closure $next)
+    public function handle(Request $request, Closure $next)
     {
         // Set up trusted X-Forwarded-Proto proxies
         // TRUSTED_PROXIES accepts a comma delimited list of subnets
         // ie, TRUSTED_PROXIES='10.0.0.0/8,172.16.0.0/12,192.168.0.0/16'
         if (isset($_ENV['TRUSTED_PROXIES'])) {
-            Request::setTrustedProxies(array_map('trim', explode(',', env('TRUSTED_PROXIES'))));
+            $request->setTrustedProxies(array_map('trim', explode(',', env('TRUSTED_PROXIES'))));
         }
 
         // Ensure all request are over HTTPS in production
-        if (Utils::requireHTTPS() && !Request::secure()) {
-            return Redirect::secure(Request::path());
+        if (Utils::requireHTTPS() && !$request->secure()) {
+            return Redirect::secure($request->path());
         }
 
         // If the database doens't yet exist we'll skip the rest
@@ -68,7 +72,7 @@ class StartupCheck
                 if (Utils::isNinja()) {
                     $data = Utils::getNewsFeedResponse();
                 } else {
-                    $file = @file_get_contents(NINJA_APP_URL.'/news_feed/'.Utils::getUserType().'/'.NINJA_VERSION);
+                    $file = @CurlUtils::get(NINJA_APP_URL.'/news_feed/'.Utils::getUserType().'/'.NINJA_VERSION);
                     $data = @json_decode($file);
                 }
                 if ($data) {
@@ -114,18 +118,18 @@ class StartupCheck
 
         // Make sure the account/user localization settings are in the session
         if (Auth::check() && !Session::has(SESSION_TIMEZONE)) {
-            Event::fire(new UserSettingsChanged());
+            Event::fire(new UserLoggedIn());
         }
 
         // Check if the user is claiming a license (ie, additional invoices, white label, etc.)
-        if (isset($_SERVER['REQUEST_URI'])) {
+        if ( ! Utils::isNinjaProd() && isset($_SERVER['REQUEST_URI'])) {
             $claimingLicense = Utils::startsWith($_SERVER['REQUEST_URI'], '/claim_license');
-            if (!$claimingLicense && Input::has('license_key') && Input::has('product_id')) {
+            if ( ! $claimingLicense && Input::has('license_key') && Input::has('product_id')) {
                 $licenseKey = Input::get('license_key');
                 $productId = Input::get('product_id');
 
                 $url = (Utils::isNinjaDev() ? SITE_URL : NINJA_APP_URL) . "/claim_license?license_key={$licenseKey}&product_id={$productId}&get_date=true";
-                $data = trim(file_get_contents($url));
+                $data = trim(CurlUtils::get($url));
 
                 if ($productId == PRODUCT_INVOICE_DESIGNS) {
                     if ($data = json_decode($data)) {
@@ -150,6 +154,8 @@ class StartupCheck
                         $company->save();
 
                         Session::flash('message', trans('texts.bought_white_label'));
+                    } else {
+                        Session::flash('error', trans('texts.invalid_white_label_license'));
                     }
                 }
             }

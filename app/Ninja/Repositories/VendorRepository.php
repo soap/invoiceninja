@@ -1,10 +1,9 @@
 <?php namespace App\Ninja\Repositories;
 
+use Utils;
 use DB;
-use App\Ninja\Repositories\BaseRepository;
 use App\Models\Vendor;
-use App\Models\VendorContact;
-use App\Models\Activity;
+
 // vendor
 class VendorRepository extends BaseRepository
 {
@@ -38,6 +37,7 @@ class VendorRepository extends BaseRepository
                         'vendor_contacts.first_name',
                         'vendor_contacts.last_name',
                         'vendors.created_at',
+                        'vendors.created_at as date',
                         'vendors.work_phone',
                         'vendors.city',
                         'vendor_contacts.email',
@@ -46,9 +46,7 @@ class VendorRepository extends BaseRepository
                         'vendors.user_id'
                     );
 
-        if (!\Session::get('show_trash:vendor')) {
-            $query->where('vendors.deleted_at', '=', null);
-        }
+        $this->applyFilters($query, ENTITY_VENDOR);
 
         if ($filter) {
             $query->where(function ($query) use ($filter) {
@@ -72,7 +70,13 @@ class VendorRepository extends BaseRepository
             $vendor = Vendor::createNew();
         } else {
             $vendor = Vendor::scope($publicId)->with('vendor_contacts')->firstOrFail();
-            \Log::warning('Entity not set in vendor repo save');
+            if (Utils::isNinjaDev()) {
+                \Log::warning('Entity not set in vendor repo save');
+            }
+        }
+
+        if ($vendor->is_deleted) {
+            return $vendor;
         }
 
         $vendor->fill($data);
@@ -80,10 +84,20 @@ class VendorRepository extends BaseRepository
 
         $first              = true;
         $vendorcontacts     = isset($data['vendor_contact']) ? [$data['vendor_contact']] : $data['vendor_contacts'];
+        $vendorcontactIds   = [];
 
         foreach ($vendorcontacts as $vendorcontact) {
             $vendorcontact      = $vendor->addVendorContact($vendorcontact, $first);
+            $vendorcontactIds[] = $vendorcontact->public_id;
             $first              = false;
+        }
+
+        if ( ! $vendor->wasRecentlyCreated) {
+            foreach ($vendor->vendor_contacts as $contact) {
+                if (!in_array($contact->public_id, $vendorcontactIds)) {
+                    $contact->delete();
+                }
+            }
         }
 
         return $vendor;

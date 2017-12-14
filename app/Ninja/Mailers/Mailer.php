@@ -1,12 +1,24 @@
 <?php namespace App\Ninja\Mailers;
 
+use Utils;
 use Exception;
 use Mail;
-use Utils;
 use App\Models\Invoice;
 
+/**
+ * Class Mailer
+ */
 class Mailer
 {
+    /**
+     * @param $toEmail
+     * @param $fromEmail
+     * @param $fromName
+     * @param $subject
+     * @param $view
+     * @param array $data
+     * @return bool|string
+     */
     public function sendTo($toEmail, $fromEmail, $fromName, $subject, $view, $data = [])
     {
         // check the username is set
@@ -18,7 +30,7 @@ class Mailer
         if (stristr($toEmail, '@example.com')) {
             return true;
         }
-        
+
         if (isset($_ENV['POSTMARK_API_TOKEN'])) {
             $views = 'emails.'.$view.'_html';
         } else {
@@ -44,7 +56,7 @@ class Mailer
                 if (!empty($data['pdfString']) && !empty($data['pdfFileName'])) {
                     $message->attachData($data['pdfString'], $data['pdfFileName']);
                 }
-                
+
                 // Attach documents to the email
                 if(!empty($data['documents'])){
                     foreach($data['documents'] as $document){
@@ -59,6 +71,11 @@ class Mailer
         }
     }
 
+    /**
+     * @param $response
+     * @param $data
+     * @return bool
+     */
     private function handleSuccess($response, $data)
     {
         if (isset($data['invitation'])) {
@@ -74,26 +91,38 @@ class Mailer
 
             $invoice->markInvitationSent($invitation, $messageId);
         }
-        
+
         return true;
     }
 
+    /**
+     * @param $exception
+     * @return string
+     */
     private function handleFailure($exception)
     {
         if (isset($_ENV['POSTMARK_API_TOKEN']) && method_exists($exception, 'getResponse')) {
-            $response = $exception->getResponse()->getBody()->getContents();
+            $response = $exception->getResponse();
+
+            if (! $response) {
+                $error = trans('texts.postmark_error', ['link' => link_to('https://status.postmarkapp.com/')]);
+                Utils::logError($error);
+                return $error;
+            }
+
+            $response = $response->getBody()->getContents();
             $response = json_decode($response);
             $emailError = nl2br($response->Message);
         } else {
             $emailError = $exception->getMessage();
         }
 
-        //Utils::logError("Email Error: $emailError");
-        
         if (isset($data['invitation'])) {
             $invitation = $data['invitation'];
             $invitation->email_error = $emailError;
             $invitation->save();
+        } elseif ( ! Utils::isNinja()) {
+            Utils::logError(Utils::getErrorString($exception));
         }
 
         return $emailError;

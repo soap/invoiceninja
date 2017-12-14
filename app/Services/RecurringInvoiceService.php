@@ -1,9 +1,7 @@
 <?php namespace App\Services;
 
-use URL;
 use Auth;
 use Utils;
-use App\Models\Invoice;
 use App\Ninja\Repositories\InvoiceRepository;
 use App\Ninja\Datatables\RecurringInvoiceDatatable;
 
@@ -20,7 +18,7 @@ class RecurringInvoiceService extends BaseService
 
     public function getDatatable($accountId, $clientPublicId = null, $entityType, $search)
     {
-        $datatable = new RecurringInvoiceDatatable( ! $clientPublicId, $clientPublicId);
+        $datatable = new RecurringInvoiceDatatable(true, $clientPublicId);
         $query = $this->invoiceRepo->getRecurringInvoices($accountId, $clientPublicId, $search);
 
         if(!Utils::hasPermission('view_all')){

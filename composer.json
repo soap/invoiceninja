@@ -13,26 +13,26 @@
         }
     ],
     "require": {
+        "php": ">=5.5.9",
+        "ext-gmp": "*",
+        "ext-gd": "*",
         "turbo124/laravel-push-notification": "dev-laravel5",
         "omnipay/mollie": "dev-master#22956c1a62a9662afa5f5d119723b413770ac525",
         "omnipay/2checkout": "dev-master#e9c079c2dde0d7ba461903b3b7bd5caf6dee1248",
         "omnipay/gocardless": "dev-master",
         "omnipay/stripe": "dev-master",
+        "doctrine/dbal": "2.5.x",
+        "laravelcollective/bus": "5.2.*",
         "laravel/framework": "5.2.*",
         "laravelcollective/html": "5.2.*",
-        "laravelcollective/bus": "5.2.*",
         "symfony/css-selector": "~3.0",
         "patricktalmadge/bootstrapper": "5.5.x",
         "anahkiasen/former": "4.0.*@dev",
-        "barryvdh/laravel-debugbar": "~2.0",
         "chumper/datatable": "dev-develop#04ef2bf",
         "omnipay/omnipay": "~2.3",
         "intervention/image": "dev-master",
         "webpatser/laravel-countries": "dev-master",
-        "barryvdh/laravel-ide-helper": "dev-master",
-        "doctrine/dbal": "2.5.x",
-        "jsanc623/phpbenchtime": "2.x",
-        "lokielse/omnipay-alipay": "dev-master",
+        "lokielse/omnipay-alipay": "~1.4",
         "coatesap/omnipay-datacash": "~2.0",
         "mfauveau/omnipay-pacnet": "~2.0",
         "coatesap/omnipay-paymentsense": "2.0.0",
@@ -75,9 +75,15 @@
         "omnipay/braintree": "~2.0@dev",
         "gatepay/FedACHdir": "dev-master@dev",
         "websight/l5-google-cloud-storage": "^1.0",
-        "fzaninotto/faker": "^1.5",
         "wepay/php-sdk": "^0.2",
-        "collizo4sky/omnipay-wepay": "dev-additional-calls"
+        "collizo4sky/omnipay-wepay": "dev-address-fix",
+        "barryvdh/laravel-ide-helper": "~2.2",
+        "barryvdh/laravel-debugbar": "~2.2",
+        "fzaninotto/faker": "^1.5",
+        "jaybizzle/laravel-crawler-detect": "1.*",
+        "codedge/laravel-selfupdater": "5.x-dev",
+        "predis/predis": "^1.1",
+        "nwidart/laravel-modules": "^1.14"
     },
     "require-dev": {
         "phpunit/phpunit": "~4.0",
@@ -97,7 +103,8 @@
             "database"
         ],
         "psr-4": {
-            "App\\": "app/"
+            "App\\": "app/",
+            "Modules\\": "Modules/"
         },
         "files": [
             "app/Libraries/lib_autolink.php",
@@ -137,7 +144,7 @@
                     "type": "zip"
                 },
                 "source": {
-                    "url": "git@github.com:gatepay/FedACHdir.git",
+                    "url": "https://github.com/gatepay/FedACHdir.git",
                     "type": "git",
                     "reference": "origin/master"
                 }
@@ -145,7 +152,7 @@
         },
         {
             "type": "vcs",
-            "url": "https://github.com/sometechie/omnipay-wepay"
+            "url": "https://github.com/hillelcoren/omnipay-wepay"
         }
     ]
 }

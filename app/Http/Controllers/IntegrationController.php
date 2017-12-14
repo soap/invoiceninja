@@ -6,8 +6,14 @@ use Auth;
 use Input;
 use App\Models\Subscription;
 
+/**
+ * Class IntegrationController
+ */
 class IntegrationController extends Controller
 {
+    /**
+     * @return \Illuminate\Http\JsonResponse
+     */
     public function subscribe()
     {
         $eventId = Utils::lookupEventId(trim(Input::get('event')));
@@ -32,6 +38,6 @@ class IntegrationController extends Controller
             return Response::json('Failed to create subscription', 500);
         }
 
-        return Response::json('{"id":'.$subscription->id.'}', 201);
+        return Response::json(['id' => $subscription->id], 201);
     }
 }

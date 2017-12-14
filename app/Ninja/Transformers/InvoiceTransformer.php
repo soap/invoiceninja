@@ -3,7 +3,6 @@
 use App\Models\Account;
 use App\Models\Client;
 use App\Models\Invoice;
-use League\Fractal;
 
 /**
  * @SWG\Definition(definition="Invoice", required={"invoice_number"}, @SWG\Xml(name="Invoice"))
@@ -41,7 +40,7 @@ class InvoiceTransformer extends EntityTransformer
     public function includeInvoiceItems(Invoice $invoice)
     {
         $transformer = new InvoiceItemTransformer($this->account, $this->serializer);
-        return $this->includeCollection($invoice->invoice_items, $transformer, ENTITY_INVOICE_ITEMS);
+        return $this->includeCollection($invoice->invoice_items, $transformer, ENTITY_INVOICE_ITEM);
     }
 
     public function includeInvitations(Invoice $invoice)
@@ -120,6 +119,7 @@ class InvoiceTransformer extends EntityTransformer
             'custom_text_value1' => $invoice->custom_text_value1,
             'custom_text_value2' => $invoice->custom_text_value2,
             'is_quote' => (bool) $invoice->isType(INVOICE_TYPE_QUOTE), // Temp to support mobile app
+            'is_public' => (bool) $invoice->is_public,
         ]);
     }
 }

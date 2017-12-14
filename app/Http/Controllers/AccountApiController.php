@@ -3,22 +3,15 @@
 use Auth;
 use Utils;
 use Response;
-use Input;
-use Validator;
 use Cache;
-use App\Models\Client;
+use Socialite;
+use Exception;
+use App\Services\AuthService;
 use App\Models\Account;
-use App\Models\AccountToken;
 use App\Ninja\Repositories\AccountRepository;
 use Illuminate\Http\Request;
-use League\Fractal;
-use League\Fractal\Manager;
-use App\Ninja\Serializers\ArraySerializer;
 use App\Ninja\Transformers\AccountTransformer;
 use App\Ninja\Transformers\UserAccountTransformer;
-use App\Http\Controllers\BaseAPIController;
-use Swagger\Annotations as SWG;
-
 use App\Events\UserSignedUp;
 use App\Http\Requests\RegisterRequest;
 use App\Http\Requests\UpdateAccountRequest;
@@ -44,12 +37,12 @@ class AccountApiController extends BaseAPIController
     public function register(RegisterRequest $request)
     {
 
-        $account = $this->accountRepo->create($request->first_name, $request->last_name, $request->email, $request->password);        
+        $account = $this->accountRepo->create($request->first_name, $request->last_name, $request->email, $request->password);
         $user = $account->users()->first();
-        
+
         Auth::login($user, true);
         event(new UserSignedUp());
-        
+
         return $this->processLogin($request);
     }
 
@@ -81,9 +74,8 @@ class AccountApiController extends BaseAPIController
         $account = Auth::user()->account;
         $updatedAt = $request->updated_at ? date('Y-m-d H:i:s', $request->updated_at) : false;
 
-        $account->loadAllData($updatedAt);
-
         $transformer = new AccountTransformer(null, $request->serializer);
+        $account->load(array_merge($transformer->getDefaultIncludes(), ['projects.client']));
         $account = $this->createItem($account, $transformer, 'account');
 
         return $this->response($account);
@@ -183,8 +175,6 @@ class AccountApiController extends BaseAPIController
                     'notify_paid' => $request->notify_paid,
                 ];
 
-                //unset($devices[$x]);
-
                 $devices[$x] = $newDevice;
                 $account->devices = json_encode($devices);
                 $account->save();
@@ -193,5 +183,31 @@ class AccountApiController extends BaseAPIController
             }
         }
 
+    }
+
+    public function oauthLogin(Request $request)
+    {
+        $user = false;
+        $token = $request->input('token');
+        $provider = $request->input('provider');
+
+        try {
+            $user = Socialite::driver($provider)->stateless()->userFromToken($token);
+        } catch (Exception $exception) {
+            return $this->errorResponse(['message' => $exception->getMessage()], 401);
+        }
+
+        if ($user) {
+            $providerId = AuthService::getProviderId($provider);
+            $user = $this->accountRepo->findUserByOauth($providerId, $user->id);
+        }
+
+        if ($user) {
+            Auth::login($user);
+            return $this->processLogin($request);
+        } else {
+            sleep(ERROR_DELAY);
+            return $this->errorResponse(['message' => 'Invalid credentials'], 401);
+        }
     }
 }

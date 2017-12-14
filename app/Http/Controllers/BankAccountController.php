@@ -2,19 +2,13 @@
 
 use Cache;
 use Auth;
-use Datatable;
-use DB;
 use Input;
 use Redirect;
 use Session;
 use View;
-use Validator;
-use stdClass;
 use Crypt;
-use URL;
-use Utils;
 use File;
-use App\Models\Gateway;
+use Utils;
 use App\Models\Account;
 use App\Models\BankAccount;
 use App\Ninja\Repositories\BankAccountRepository;
@@ -137,6 +131,7 @@ class BankAccountController extends BaseController
             $data = $this->bankAccountService->parseOFX($file);
         } catch (\Exception $e) {
             Session::flash('error', trans('texts.ofx_parse_failed'));
+            Utils::logError($e);
             return view('accounts.import_ofx');
         }
 

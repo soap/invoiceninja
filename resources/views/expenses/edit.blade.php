@@ -26,17 +26,27 @@
 	@if ($expense)
 		{!! Former::populate($expense) !!}
         {!! Former::populateField('should_be_invoiced', intval($expense->should_be_invoiced)) !!}
-        {!! Former::hidden('public_id') !!}
+
+        <div style="display:none">
+            {!! Former::text('public_id') !!}
+            {!! Former::text('invoice_id') !!}
+        </div>
 	@endif
 
     <div class="panel panel-default">
         <div class="panel-body">
             <div class="row">
                 <div class="col-md-6">
+
     				{!! Former::select('vendor_id')->addOption('', '')
                             ->data_bind('combobox: vendor_id')
                             ->label(trans('texts.vendor'))
                             ->addGroupClass('vendor-select') !!}
+
+                    {!! Former::select('expense_category_id')->addOption('', '')
+                            ->data_bind('combobox: expense_category_id')
+                            ->label(trans('texts.category'))
+                            ->addGroupClass('category-select') !!}
 
                     {!! Former::text('expense_date')
                             ->data_date_format(Session::get(SESSION_DATE_PICKER_FORMAT, DEFAULT_DATE_PICKER_FORMAT))
@@ -56,11 +66,17 @@
                             ->addGroupClass('amount')
                             ->append('<span data-bind="html: expenseCurrencyCode"></span>') !!}
 
-                    {!! Former::select('client_id')
-                            ->addOption('', '')
-                            ->label(trans('texts.client'))
-                            ->data_bind('combobox: client_id')
-                            ->addGroupClass('client-select') !!}
+                    @if ($expense && $expense->invoice_id)
+                        {!! Former::plaintext()
+                                ->label('client')
+                                ->value($expense->client->getDisplayName()) !!}
+                    @else
+                        {!! Former::select('client_id')
+                                ->addOption('', '')
+                                ->label(trans('texts.client'))
+                                ->data_bind('combobox: client_id')
+                                ->addGroupClass('client-select') !!}
+                    @endif
 
                     @if (!$expense || ($expense && !$expense->invoice_id && !$expense->client_id))
                         {!! Former::checkbox('should_be_invoiced')
@@ -75,9 +91,10 @@
                                 ->data_bind('checked: convert_currency')
                                 ->label(' ') !!}
                     @endif
-                    <br/>
+
 
                     <div style="display:none" data-bind="visible: enableExchangeRate">
+                        <br/>
                         <span style="display:none" data-bind="visible: !client_id()">
                             {!! Former::select('invoice_currency_id')->addOption('','')
                                     ->label(trans('texts.invoice_currency'))
@@ -100,6 +117,41 @@
                                 ->data_bind("value: convertedAmount, enable: enableExchangeRate")
                                 ->append('<span data-bind="html: invoiceCurrencyCode"></span>') !!}
                     </div>
+
+
+                    @if (!$expense || ($expense && (!$expense->tax_name1 && !$expense->tax_name2)))
+                        {!! Former::checkbox('apply_taxes')
+                                ->text(trans('texts.apply_taxes'))
+                                ->data_bind('checked: apply_taxes')
+                                ->label(' ') !!}
+                    @endif
+
+                    <div style="display:none" data-bind="visible: apply_taxes">
+                        <br/>
+                        {!! Former::select('tax_select1')
+                            ->addOption('','')
+                            ->label(trans('texts.tax_rate'))
+                            ->onchange('taxSelectChange(event)')
+            				->fromQuery($taxRates) !!}
+
+                        <div style="display:none">
+                            {!! Former::input('tax_rate1') !!}
+                            {!! Former::input('tax_name1') !!}
+                        </div>
+
+                        <div style="display:{{ $account->enable_second_tax_rate ? 'block' : 'none' }}">
+                            {!! Former::select('tax_select2')
+                                ->addOption('','')
+                                ->label(trans('texts.tax_rate'))
+                                ->onchange('taxSelectChange(event)')
+                				->fromQuery($taxRates) !!}
+
+                            <div style="display:none">
+                                {!! Former::input('tax_rate2') !!}
+                                {!! Former::input('tax_name2') !!}
+                            </div>
+                        </div>
+                    </div>
 	            </div>
                 <div class="col-md-6">
 
@@ -108,7 +160,7 @@
 
                 </div>
             </div>
-            @if ($account->isPro())
+            @if ($account->hasFeature(FEATURE_DOCUMENTS))
             <div clas="row">
                 <div class="col-md-2 col-sm-4"><div class="control-label" style="margin-bottom:10px;">{{trans('texts.expense_documents')}}</div></div>
                 <div class="col-md-12 col-sm-8">
@@ -125,16 +177,38 @@
         </div>
     </div>
 
-	<center class="buttons">
-        {!! Button::normal(trans('texts.cancel'))->large()->asLinkTo(URL::to('/expenses'))->appendIcon(Icon::create('remove-circle')) !!}
-        {!! Button::success(trans('texts.save'))->submit()->large()->appendIcon(Icon::create('floppy-disk')) !!}
-        @if ($expense)
-            {!! DropdownButton::normal(trans('texts.more_actions'))
-                  ->withContents($actions)
-                  ->large()
-                  ->dropup() !!}
+    <center class="buttons">
+        {!! Button::normal(trans('texts.cancel'))
+                ->asLinkTo(URL::to('/expenses'))
+                ->appendIcon(Icon::create('remove-circle'))
+                ->large() !!}
+
+        @if (Auth::user()->canCreateOrEdit(ENTITY_EXPENSE, $expense))
+            @if (Auth::user()->hasFeature(FEATURE_EXPENSES))
+                @if (!$expense || !$expense->is_deleted)
+                    {!! Button::success(trans('texts.save'))
+                            ->appendIcon(Icon::create('floppy-disk'))
+                            ->large()
+                            ->submit() !!}
+                @endif
+
+                @if ($expense && !$expense->trashed())
+                    {!! DropdownButton::normal(trans('texts.more_actions'))
+                          ->withContents($actions)
+                          ->large()
+                          ->dropup() !!}
+                @endif
+
+                @if ($expense && $expense->trashed())
+                    {!! Button::primary(trans('texts.restore'))
+                            ->withAttributes(['onclick' => 'submitAction("restore")'])
+                            ->appendIcon(Icon::create('cloud-download'))
+                            ->large() !!}
+                @endif
+
+            @endif
         @endif
-	</center>
+    </center>
 
 	{!! Former::close() !!}
 
@@ -143,6 +217,8 @@
 
         var vendors = {!! $vendors !!};
         var clients = {!! $clients !!};
+        var categories = {!! $categories !!};
+        var taxRates = {!! $taxRates !!};
 
         var clientMap = {};
         for (var i=0; i<clients.length; i++) {
@@ -152,11 +228,15 @@
 
         function onFormSubmit(event) {
             if (window.countUploadingDocuments > 0) {
-                alert("{!! trans('texts.wait_for_upload') !!}");
+                swal("{!! trans('texts.wait_for_upload') !!}");
                 return false;
             }
 
-            return true;
+            @if (Auth::user()->canCreateOrEdit(ENTITY_EXPENSE, $expense))
+                return true;
+            @else
+                return false
+            @endif
         }
 
         function onClientChange() {
@@ -167,15 +247,16 @@
             }
         }
 
-        function submitAction(action) {
+        function submitAction(action, invoice_id) {
             $('#action').val(action);
+            $('#invoice_id').val(invoice_id);
             $('.main-form').submit();
         }
 
         function onDeleteClick() {
-            if (confirm('{!! trans("texts.are_you_sure") !!}')) {
+            sweetConfirm(function() {
                 submitAction('delete');
-            }
+            });
         }
 
         $(function() {
@@ -187,6 +268,13 @@
             }
             $vendorSelect.combobox();
 
+            var $categorySelect = $('select#expense_category_id');
+            for (var i = 0; i < categories.length; i++) {
+                var category = categories[i];
+                $categorySelect.append(new Option(category.name, category.public_id));
+            }
+            $categorySelect.combobox();
+
             $('#expense_date').datepicker('update', '{{ $expense ? $expense->expense_date : 'new Date()' }}');
 
             $('.expense_date .input-group-addon').click(function() {
@@ -196,11 +284,18 @@
             var $clientSelect = $('select#client_id');
             for (var i=0; i<clients.length; i++) {
                 var client = clients[i];
-                $clientSelect.append(new Option(getClientDisplayName(client), client.public_id));
+                var clientName = getClientDisplayName(client);
+                if (!clientName) {
+                    continue;
+                }
+                $clientSelect.append(new Option(clientName, client.public_id));
             }
             $clientSelect.combobox().change(function() {
                 onClientChange();
             });
+
+            setTaxSelect(1);
+            setTaxSelect(2);
 
             @if ($data)
                 // this means we failed so we'll reload the previous state
@@ -285,7 +380,8 @@
             self.amount = ko.observable();
             self.exchange_rate = ko.observable(1);
             self.should_be_invoiced = ko.observable();
-            self.convert_currency = ko.observable(false);
+            self.convert_currency = ko.observable({{ ($expense && $expense->isExchanged()) ? 'true' : 'false' }});
+            self.apply_taxes = ko.observable({{ ($expense && ($expense->tax_name1 || $expense->tax_name2)) ? 'true' : 'false' }});
 
             self.mapping = {
                 'documents': {
@@ -302,6 +398,7 @@
             self.account_currency_id = ko.observable({{ $account->getCurrencyId() }});
             self.client_id = ko.observable({{ $clientPublicId }});
             self.vendor_id = ko.observable({{ $vendorPublicId }});
+            self.expense_category_id = ko.observable({{ $categoryPublicId }});
 
             self.convertedAmount = ko.computed({
                 read: function () {
@@ -371,7 +468,7 @@
         }
 
         window.countUploadingDocuments = 0;
-        @if (Auth::user()->account->hasFeature(FEATURE_DOCUMENTS))
+
         function handleDocumentAdded(file){
             // open document when clicked
             if (file.url) {
@@ -397,9 +494,9 @@
         }
 
         function handleDocumentUploaded(file, response){
+            window.countUploadingDocuments--;
             file.public_id = response.document.public_id
             model.documents()[file.index].update(response.document);
-            window.countUploadingDocuments--;
             if(response.document.preview_url){
                 dropzone.emit('thumbnail', file, response.document.preview_url);
             }
@@ -412,7 +509,40 @@
         function handleDocumentError() {
             window.countUploadingDocuments--;
         }
-        @endif
+
+        function taxSelectChange(event) {
+            var $select = $(event.target);
+            var tax = $select.find('option:selected').text();
+
+            var index = tax.lastIndexOf(': ');
+            var taxName =  tax.substring(0, index);
+            var taxRate = tax.substring(index + 2, tax.length - 1);
+
+            var selectName = $select.attr('name');
+            var instance = selectName.substring(selectName.length - 1);
+
+            $('#tax_name' + instance).val(taxName);
+            $('#tax_rate' + instance).val(taxRate);
+        }
+
+        function setTaxSelect(instance) {
+            var $select = $('#tax_select' + instance);
+            var taxName = $('#tax_name' + instance).val();
+            var taxRate = $('#tax_rate' + instance).val();
+            if (!taxRate || !taxName) {
+                return;
+            }
+            var tax = _.findWhere(taxRates, {name:taxName, rate:taxRate});
+            if (tax) {
+                $select.val(tax.public_id);
+            } else {
+                var option = new Option(taxName + ': ' + taxRate + '%', '');
+                option.selected = true;
+                $select.append(option);
+            }
+        }
+
+
     </script>
 
 @stop

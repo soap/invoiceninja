@@ -1,7 +1,7 @@
 @if (!Utils::isPro() && isset($advanced) && $advanced)
 <div class="alert alert-warning" style="font-size:larger;">
 <center>
-    {!! trans('texts.pro_plan_advanced_settings', ['link'=>'<a href="#" onclick="showProPlan(\''.$selected.'\')">'.trans('texts.pro_plan_remove_logo_link').'</a>']) !!}
+    {!! trans('texts.pro_plan_advanced_settings', ['link'=>'<a href="javascript:showUpgradeModal()">' . trans('texts.pro_plan_remove_logo_link') . '</a>']) !!}
 </center>
 </div>
 @endif
@@ -16,7 +16,7 @@
             <div class="panel panel-default">
                 <div class="panel-heading" style="color:white">
                     {{ trans("texts.{$type}") }}
-                    @if ($type === ADVANCED_SETTINGS && !Utils::isPro())
+                    @if ($type === ADVANCED_SETTINGS && ! Utils::isPaidPro())
                         <sup>{{ strtoupper(trans('texts.pro')) }}</sup>
                     @endif
                 </div>

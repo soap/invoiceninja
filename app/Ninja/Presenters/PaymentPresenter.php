@@ -1,9 +1,13 @@
 <?php namespace App\Ninja\Presenters;
 
-use URL;
 use Utils;
 
 class PaymentPresenter extends EntityPresenter {
+
+    public function amount()
+    {
+        return Utils::formatMoney($this->entity->amount, $this->entity->client->currency_id);
+    }
 
     public function client()
     {
@@ -23,5 +27,4 @@ class PaymentPresenter extends EntityPresenter {
             return $this->entity->payment_type->name;
         }
     }
-
 }

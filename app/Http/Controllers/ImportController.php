@@ -7,7 +7,6 @@ use Input;
 use Session;
 use Redirect;
 use App\Services\ImportService;
-use App\Http\Controllers\BaseController;
 
 class ImportController extends BaseController
 {
@@ -32,12 +31,20 @@ class ImportController extends BaseController
             }
         }
 
+        if ( ! count($files)) {
+            Session::flash('error', trans('texts.select_file'));
+            return Redirect::to('/settings/' . ACCOUNT_IMPORT_EXPORT);
+        }
+
         try {
             if ($source === IMPORT_CSV) {
                 $data = $this->importService->mapCSV($files);
                 return View::make('accounts.import_map', ['data' => $data]);
+            } elseif ($source === IMPORT_JSON) {
+                $results = $this->importService->importJSON($files[IMPORT_JSON]);
+                return $this->showResult($results);
             } else {
-                $results = $this->importService->import($source, $files);
+                $results = $this->importService->importFiles($source, $files);
                 return $this->showResult($results);
             }
         } catch (Exception $exception) {

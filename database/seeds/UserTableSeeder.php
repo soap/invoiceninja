@@ -7,6 +7,10 @@ use App\Models\Company;
 use App\Models\Affiliate;
 use App\Models\Country;
 use App\Models\InvoiceDesign;
+use App\Models\Client;
+use App\Models\Contact;
+use App\Models\Product;
+use App\Models\DateFormat;
 use Faker\Factory;
 class UserTableSeeder extends Seeder
 {
@@ -38,9 +42,12 @@ class UserTableSeeder extends Seeder
             'primary_color' => $faker->hexcolor,
             'timezone_id' => 1,
             'company_id' => $company->id,
+            //'date_format_id' => DateFormat::all()->random()->id,
         ]);
 
-        User::create([
+        $user = User::create([
+            'first_name' => $faker->firstName,
+            'last_name' => $faker->lastName,
             'email' => TEST_USERNAME,
             'username' => TEST_USERNAME,
             'account_id' => $account->id,
@@ -49,6 +56,40 @@ class UserTableSeeder extends Seeder
             'confirmed' => true,
             'notify_sent' => false,
             'notify_paid' => false,
+            'is_admin' => 1,
+        ]);
+
+        $client = Client::create([
+            'user_id' => $user->id,
+            'account_id' => $account->id,
+            'public_id' => 1,
+            'name' => $faker->name,
+            'address1' => $faker->streetAddress,
+            'address2' => $faker->secondaryAddress,
+            'city' => $faker->city,
+            'state' => $faker->state,
+            'postal_code' => $faker->postcode,
+            'country_id' => DEFAULT_COUNTRY,
+            'currency_id' => DEFAULT_CURRENCY,
+        ]);
+
+        Contact::create([
+            'user_id' => $user->id,
+            'account_id' => $account->id,
+            'client_id' => $client->id,
+            'public_id' => 1,
+            'email' => env('TEST_EMAIL', TEST_USERNAME),
+            'is_primary' => true,
+			'send_invoice' => true,
+        ]);
+
+        Product::create([
+            'user_id' => $user->id,
+            'account_id' => $account->id,
+            'public_id' => 1,
+            'product_key' => 'ITEM',
+            'notes' => 'Something nice...',
+            'cost' => 10,
         ]);
 
         Affiliate::create([

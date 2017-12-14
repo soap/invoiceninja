@@ -15,20 +15,24 @@ body {
 .container select,
 .braintree-hosted {
     @if(!empty($account))
-    {!! $account->getBodyFontCss() !!}
+        {!! $account->getBodyFontCss() !!}
     @else
-    font-weight: 300;
-    font-family: 'Roboto', sans-serif;
+        font-weight: 300;
+        font-family: 'Roboto', sans-serif;
     @endif
     width: 100%;
     padding: 11px;
-    color: #8c8c8c;
+    color: #444444;
     background: #f9f9f9;
     border: 1px solid #ebe7e7;
     border-radius: 3px;
     font-size: 16px;
     min-height: 42px !important;
     font-weight: 400;
+}
+
+.container select {
+    color: #999999;
 }
 
 .form-control.braintree-hosted-fields-focused{
@@ -66,7 +70,7 @@ div.row {
 header {
     margin: 0px !important
 }
-    
+
 @media screen and (min-width: 700px) {
     header {
         margin: 20px 0 75px;
@@ -100,14 +104,14 @@ h3 .help {
 }
 
 header h3 {
-    text-transform: uppercase;    
+    text-transform: uppercase;
 }
-    
+
 header h3 span {
     display: inline-block;
     margin-left: 8px;
 }
-    
+
 header h3 em {
     font-style: normal;
     color: #eb8039;
@@ -119,14 +123,14 @@ header h3 em {
     background: url({{ asset('/images/icon-shield.png') }}) right 22px no-repeat;
     padding: 17px 55px 10px 0;
     }
-    
+
 .secure h3 {
     color: #36b855;
     font-size: 30px;
     margin-bottom: 8px;
     margin-top: 0px;
     }
-    
+
 .secure div {
     color: #acacac;
     font-size: 15px;
