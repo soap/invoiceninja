@@ -20,6 +20,7 @@ use App\Ninja\Repositories\InvoiceRepository;
 use App\Ninja\Repositories\ClientRepository;
 use App\Services\InvoiceService;
 use App\Http\Requests\InvoiceRequest;
+use App\Ninja\Datatables\InvoiceDatatable;
 
 class QuoteController extends BaseController
 {
@@ -41,23 +42,16 @@ class QuoteController extends BaseController
 
     public function index()
     {
+        $datatable = new InvoiceDatatable();
+        $datatable->entityType = ENTITY_QUOTE;
+
         $data = [
           'title' => trans('texts.quotes'),
           'entityType' => ENTITY_QUOTE,
-          'sortCol' => '3',
-          'columns' => Utils::trans([
-            'checkbox',
-            'quote_number',
-            'client',
-            'quote_date',
-            'quote_total',
-            'valid_until',
-            'status',
-            'action'
-          ]),
+          'datatable' => $datatable,
         ];
 
-        return response()->view('list', $data);
+        return response()->view('list_wrapper', $data);
     }
 
     public function getDatatable($clientPublicId = null)
@@ -154,11 +148,7 @@ class QuoteController extends BaseController
             Session::flash('message', $message);
         }
 
-        if ($action == 'restore' && $count == 1) {
-            return Redirect::to('quotes/'.Utils::getFirst($ids));
-        } else {
-            return Redirect::to('quotes');
-        }
+        return $this->returnBulk(ENTITY_QUOTE, $action, $ids);
     }
 
     public function approve($invitationKey)

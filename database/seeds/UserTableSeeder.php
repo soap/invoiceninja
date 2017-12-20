@@ -10,8 +10,8 @@ use App\Models\InvoiceDesign;
 use App\Models\Client;
 use App\Models\Contact;
 use App\Models\Product;
+use App\Models\DateFormat;
 use Faker\Factory;
-
 class UserTableSeeder extends Seeder
 {
 
@@ -42,6 +42,7 @@ class UserTableSeeder extends Seeder
             'primary_color' => $faker->hexcolor,
             'timezone_id' => 1,
             'company_id' => $company->id,
+            //'date_format_id' => DateFormat::all()->random()->id,
         ]);
 
         $user = User::create([
@@ -79,6 +80,7 @@ class UserTableSeeder extends Seeder
             'public_id' => 1,
             'email' => env('TEST_EMAIL', TEST_USERNAME),
             'is_primary' => true,
+			'send_invoice' => true,
         ]);
 
         Product::create([

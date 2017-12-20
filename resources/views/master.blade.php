@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="{{App::getLocale()}}">
 <head>
-    @if (isset($account) && $account instanceof \App\Models\Account && $account->hasFeature(FEATURE_WHITE_LABEL))
+    @if (!Utils::isNinja() && !Auth::check())
         <title>{{ trans('texts.client_portal') }}</title>
     @else
         <title>{{ isset($title) ? ($title . ' | Invoice Ninja') : ('Invoice Ninja | ' . trans('texts.app_title')) }}</title>
@@ -90,15 +90,16 @@
         function sweetConfirm(success, text, title) {
             title = title || "{!! trans("texts.are_you_sure") !!}";
             swal({
-                type: "warning",
+                //type: "warning",
+                //confirmButtonColor: "#DD6B55",
                 title: title,
                 text: text,
                 cancelButtonText: "{!! trans("texts.no") !!}",
                 confirmButtonText: "{!! trans("texts.yes") !!}",
-                confirmButtonColor: "#DD6B55",
                 showCancelButton: true,
-                closeOnConfirm: false
-            }, function() {
+                closeOnConfirm: false,
+                allowOutsideClick: true,
+            }).then(function() {
                 success();
                 swal.close();
             });
@@ -107,7 +108,7 @@
         /* Set the defaults for DataTables initialisation */
         $.extend(true, $.fn.dataTable.defaults, {
             "bSortClasses": false,
-            "sDom": "t<'row-fluid'<'span6'i><'span6'p>>l",
+            "sDom": "t<'row-fluid'<'span6 dt-left'i><'span6 dt-right'p>>l",
             "sPaginationType": "bootstrap",
             "bInfo": true,
             "oLanguage": {
@@ -181,7 +182,7 @@
 
 <body class="body">
 
-@if (isset($_ENV['TAG_MANAGER_KEY']) && $_ENV['TAG_MANAGER_KEY'])
+@if (Utils::isNinjaProd() && isset($_ENV['TAG_MANAGER_KEY']) && $_ENV['TAG_MANAGER_KEY'])
     <!-- Google Tag Manager -->
     <noscript>
         <iframe src="//www.googletagmanager.com/ns.html?id={{ $_ENV['TAG_MANAGER_KEY'] }}"
@@ -205,7 +206,7 @@
         function trackEvent(category, action) {
         }
     </script>
-@elseif (isset($_ENV['ANALYTICS_KEY']) && $_ENV['ANALYTICS_KEY'])
+@elseif (Utils::isNinjaProd() && isset($_ENV['ANALYTICS_KEY']) && $_ENV['ANALYTICS_KEY'])
     <script>
         (function (i, s, o, g, r, a, m) {
             i['GoogleAnalyticsObject'] = r;
@@ -245,11 +246,8 @@
 
         @if (Session::has('trackEventCategory') && Session::has('trackEventAction'))
             @if (Session::get('trackEventAction') === '/buy_pro_plan')
-                window._fbq.push(['track', '{{ env('FACEBOOK_PIXEL_BUY_PRO') }}', {
-            'value': '{{ session('trackEventAmount') }}',
-            'currency': 'USD'
-        }]);
-        @endif
+                fbq('track', 'Purchase', {value: '{{ session('trackEventAmount') }}', currency: 'USD'});
+            @endif
         @endif
 
         @if (Session::has('onReady'))

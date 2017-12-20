@@ -77,6 +77,7 @@ class DatatableService
             if (!$model->deleted_at || $model->deleted_at == '0000-00-00') {
                 foreach ($datatable->actions() as $action) {
                     if (count($action)) {
+                        // if show function isn't set default to true
                         if (count($action) == 2) {
                             $action[] = function() {
                                 return true;
@@ -84,11 +85,10 @@ class DatatableService
                         }
                         list($value, $url, $visible) = $action;
                         if ($visible($model)) {
-                            if($value == '--divider--'){
+                            if ($value == '--divider--') {
                                 $dropdown_contents .= '<li class="divider"></li>';
                                 $lastIsDivider = true;
-                            }
-                            else {
+                            } else {
                                 $urlVal = $url($model);
                                 $urlStr = is_string($urlVal) ? $urlVal : $urlVal['url'];
                                 $attributes = '';
@@ -116,17 +116,17 @@ class DatatableService
                 }
 
                 if (($datatable->entityType != ENTITY_USER || $model->public_id) && $can_edit) {
-                    $dropdown_contents .= "<li><a href=\"javascript:archiveEntity({$model->public_id})\">"
-                            . trans("texts.archive_{$datatable->entityType}") . '</a></li>';
+                    $dropdown_contents .= "<li><a href=\"javascript:submitForm_{$datatable->entityType}('archive', {$model->public_id})\">"
+                            . mtrans($datatable->entityType, "archive_{$datatable->entityType}") . '</a></li>';
                 }
             } else if($can_edit) {
-                $dropdown_contents .= "<li><a href=\"javascript:restoreEntity({$model->public_id})\">"
-                    . trans("texts.restore_{$datatable->entityType}") . '</a></li>';
+                $dropdown_contents .= "<li><a href=\"javascript:submitForm_{$datatable->entityType}('restore', {$model->public_id})\">"
+                    . mtrans($datatable->entityType, "restore_{$datatable->entityType}") . '</a></li>';
             }
 
             if (property_exists($model, 'is_deleted') && !$model->is_deleted && $can_edit) {
-                $dropdown_contents .= "<li><a href=\"javascript:deleteEntity({$model->public_id})\">"
-                        . trans("texts.delete_{$datatable->entityType}") . '</a></li>';
+                $dropdown_contents .= "<li><a href=\"javascript:submitForm_{$datatable->entityType}('delete', {$model->public_id})\">"
+                        . mtrans($datatable->entityType, "delete_{$datatable->entityType}") . '</a></li>';
             }
 
             if (!empty($dropdown_contents)) {

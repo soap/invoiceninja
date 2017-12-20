@@ -13,12 +13,16 @@
 @stop
 
 @section('content')
-	
-	{!! Former::open($url)->addClass('col-md-10 col-md-offset-1 warn-on-exit')->method($method)->rules(array(
-		'client' => 'required',
-		'invoice' => 'required',		
-		'amount' => 'required',		
-	)) !!}
+
+	{!! Former::open($url)
+        ->addClass('col-md-10 col-md-offset-1 warn-on-exit')
+        ->onsubmit('onFormSubmit(event)')
+        ->method($method)
+        ->rules(array(
+    		'client' => 'required',
+    		'invoice' => 'required',
+    		'amount' => 'required',
+    	)) !!}
 
     @if ($payment)
         {!! Former::populate($payment) !!}
@@ -27,14 +31,18 @@
     <span style="display:none">
         {!! Former::text('public_id') !!}
     </span>
-	
+
 	<div class="row">
 		<div class="col-md-10 col-md-offset-1">
 
             <div class="panel panel-default">
             <div class="panel-body">
 
-            @if (!$payment)
+            @if ($payment)
+             {!! Former::plaintext()->label('client')->value($payment->client->getDisplayName()) !!}
+             {!! Former::plaintext()->label('invoice')->value($payment->invoice->getDisplayName()) !!}
+             {!! Former::plaintext()->label('amount')->value($payment->present()->amount) !!}
+            @else
 			 {!! Former::select('client')->addOption('', '')->addGroupClass('client-select') !!}
 			 {!! Former::select('invoice')->addOption('', '')->addGroupClass('invoice-select') !!}
 			 {!! Former::text('amount') !!}
@@ -70,7 +78,9 @@
 
 	<center class="buttons">
         {!! Button::normal(trans('texts.cancel'))->appendIcon(Icon::create('remove-circle'))->asLinkTo(URL::to('/payments'))->large() !!}
-        {!! Button::success(trans('texts.save'))->appendIcon(Icon::create('floppy-disk'))->submit()->large() !!}
+        @if (!$payment || !$payment->is_deleted)
+            {!! Button::success(trans('texts.save'))->withAttributes(['id' => 'saveButton'])->appendIcon(Icon::create('floppy-disk'))->submit()->large() !!}
+        @endif
 	</center>
 
 	{!! Former::close() !!}
@@ -84,12 +94,15 @@
 
         @if ($payment)
           $('#payment_date').datepicker('update', '{{ $payment->payment_date }}')
+          @if ($payment->payment_type_id != PAYMENT_TYPE_CREDIT)
+            $("#payment_type_id option[value='{{ PAYMENT_TYPE_CREDIT }}']").remove();
+          @endif
         @else
           $('#payment_date').datepicker('update', new Date());
 		  populateInvoiceComboboxes({{ $clientPublicId }}, {{ $invoicePublicId }});
         @endif
 
-		$('#payment_type_id').combobox();		
+		$('#payment_type_id').combobox();
 
         @if (!$payment && !$clientPublicId)
             $('.client-select input.form-control').focus();
@@ -103,6 +116,10 @@
             toggleDatePicker('payment_date');
         });
 	});
+
+    function onFormSubmit(event) {
+        $('#saveButton').attr('disabled', true);
+    }
 
 	</script>
 

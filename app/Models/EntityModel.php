@@ -2,6 +2,7 @@
 
 use Auth;
 use Eloquent;
+use Illuminate\Database\QueryException;
 use Utils;
 use Validator;
 
@@ -14,6 +15,12 @@ class EntityModel extends Eloquent
      * @var bool
      */
     public $timestamps = true;
+
+    /**
+     * @var bool
+     */
+    protected static $hasPublicId = true;
+
     /**
      * @var array
      */
@@ -23,6 +30,15 @@ class EntityModel extends Eloquent
      * @var bool
      */
     public static $notifySubscriptions = true;
+
+    /**
+     * @var array
+     */
+    public static $statuses = [
+        STATUS_ACTIVE,
+        STATUS_ARCHIVED,
+        STATUS_DELETED,
+    ];
 
     /**
      * @param null $context
@@ -56,13 +72,15 @@ class EntityModel extends Eloquent
             $lastEntity = $className::whereAccountId($entity->account_id);
         }
 
-        $lastEntity = $lastEntity->orderBy('public_id', 'DESC')
-                        ->first();
+        if (static::$hasPublicId) {
+            $lastEntity = $lastEntity->orderBy('public_id', 'DESC')
+                                     ->first();
 
-        if ($lastEntity) {
-            $entity->public_id = $lastEntity->public_id + 1;
-        } else {
-            $entity->public_id = 1;
+            if ($lastEntity) {
+                $entity->public_id = $lastEntity->public_id + 1;
+            } else {
+                $entity->public_id = 1;
+            }
         }
 
         return $entity;
@@ -90,6 +108,16 @@ class EntityModel extends Eloquent
     public function entityKey()
     {
         return $this->public_id . ':' . $this->getEntityType();
+    }
+
+    public function subEntityType()
+    {
+        return $this->getEntityType();
+    }
+
+    public function isEntityType($type)
+    {
+        return $this->getEntityType() === $type;
     }
 
     /*
@@ -126,7 +154,7 @@ class EntityModel extends Eloquent
             }
         }
 
-        if (Auth::check() && ! Auth::user()->hasPermission('view_all')) {
+        if (Auth::check() && ! Auth::user()->hasPermission('view_all') && $this->getEntityType() != ENTITY_TAX_RATE) {
             $query->where(Utils::pluralizeEntityType($this->getEntityType()) . '.user_id', '=', Auth::user()->id);
         }
 
@@ -164,6 +192,16 @@ class EntityModel extends Eloquent
      */
     public static function getClassName($entityType)
     {
+        if ( ! Utils::isNinjaProd()) {
+            if ($module = \Module::find($entityType)) {
+                return "Modules\\{$module->getName()}\\Models\\{$module->getName()}";
+            }
+        }
+
+        if ($entityType == ENTITY_QUOTE || $entityType == ENTITY_RECURRING_INVOICE) {
+            $entityType = ENTITY_INVOICE;
+        }
+
         return 'App\\Models\\' . ucwords(Utils::toCamelCase($entityType));
     }
 
@@ -173,6 +211,12 @@ class EntityModel extends Eloquent
      */
     public static function getTransformerName($entityType)
     {
+        if ( ! Utils::isNinjaProd()) {
+            if ($module = \Module::find($entityType)) {
+                return "Modules\\{$module->getName()}\\Transformers\\{$module->getName()}Transformer";
+            }
+        }
+
         return 'App\\Ninja\\Transformers\\' . ucwords(Utils::toCamelCase($entityType)) . 'Transformer';
     }
 
@@ -227,6 +271,79 @@ class EntityModel extends Eloquent
         } else {
             return true;
         }
+    }
+
+    public static function getIcon($entityType)
+    {
+        $icons = [
+            'dashboard' => 'tachometer',
+            'clients' => 'users',
+            'products' => 'cube',
+            'invoices' => 'file-pdf-o',
+            'payments' => 'credit-card',
+            'recurring_invoices' => 'files-o',
+            'credits' => 'credit-card',
+            'quotes' => 'file-text-o',
+            'tasks' => 'clock-o',
+            'expenses' => 'file-image-o',
+            'vendors' => 'building',
+            'settings' => 'cog',
+            'self-update' => 'download',
+        ];
+
+        return array_get($icons, $entityType);
+    }
+
+    // isDirty return true if the field's new value is the same as the old one
+    public function isChanged()
+    {
+        foreach ($this->fillable as $field) {
+            if ($this->$field != $this->getOriginal($field)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static function getStates($entityType = false)
+    {
+        $data = [];
+
+        foreach (static::$statuses as $status) {
+            $data[$status] = trans("texts.{$status}");
+        }
+
+        return $data;
+    }
+
+    public static function getStatuses($entityType = false)
+    {
+        return [];
+    }
+
+    public static function getStatesFor($entityType = false)
+    {
+        $class = static::getClassName($entityType);
+
+        return $class::getStates($entityType);
+    }
+
+    public static function getStatusesFor($entityType = false)
+    {
+        $class = static::getClassName($entityType);
+
+        return $class::getStatuses($entityType);
+    }
+
+    public function statusClass()
+    {
+        return '';
+    }
+
+    public function statusLabel()
+    {
+        return '';
     }
 
 }

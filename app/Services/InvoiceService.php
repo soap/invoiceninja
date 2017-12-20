@@ -86,9 +86,14 @@ class InvoiceService extends BaseService
         $sendInvoiceIds = [];
 
         foreach ($client->contacts as $contact) {
-            if ($contact->send_invoice || count($client->contacts) == 1) {
+            if ($contact->send_invoice) {
                 $sendInvoiceIds[] = $contact->id;
             }
+        }
+
+        // if no contacts are selected auto-select the first to enusre there's an invitation
+        if ( ! count($sendInvoiceIds)) {
+            $sendInvoiceIds[] = $client->contacts[0]->id;
         }
 
         foreach ($client->contacts as $contact) {
@@ -103,6 +108,10 @@ class InvoiceService extends BaseService
             } elseif (!in_array($contact->id, $sendInvoiceIds) && $invitation) {
                 $invitation->delete();
             }
+        }
+
+        if ($invoice->is_public && ! $invoice->areInvitationsSent()) {
+            $invoice->markInvitationsSent();
         }
 
         return $invoice;
@@ -150,7 +159,7 @@ class InvoiceService extends BaseService
 
     public function getDatatable($accountId, $clientPublicId = null, $entityType, $search)
     {
-        $datatable = new InvoiceDatatable( ! $clientPublicId, $clientPublicId);
+        $datatable = new InvoiceDatatable(true, $clientPublicId);
         $datatable->entityType = $entityType;
 
         $query = $this->invoiceRepo->getInvoices($accountId, $clientPublicId, $entityType, $search)

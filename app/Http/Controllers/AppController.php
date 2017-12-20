@@ -56,14 +56,12 @@ class AppController extends BaseController
         $app = Input::get('app');
         $app['key'] = env('APP_KEY') ?: str_random(RANDOM_KEY_LENGTH);
         $app['debug'] = Input::get('debug') ? 'true' : 'false';
+        $app['https'] = Input::get('https') ? 'true' : 'false';
 
         $database = Input::get('database');
         $dbType = 'mysql'; // $database['default'];
         $database['connections'] = [$dbType => $database['type']];
-
         $mail = Input::get('mail');
-        $email = $mail['username'];
-        $mail['from']['address'] = $email;
 
         if ($test == 'mail') {
             return self::testMail($mail);
@@ -83,6 +81,7 @@ class AppController extends BaseController
 
         $_ENV['APP_ENV'] = 'production';
         $_ENV['APP_DEBUG'] = $app['debug'];
+        $_ENV['REQUIRE_HTTPS'] = $app['https'];
         $_ENV['APP_URL'] = $app['url'];
         $_ENV['APP_KEY'] = $app['key'];
         $_ENV['APP_CIPHER'] = env('APP_CIPHER', 'AES-256-CBC');
@@ -97,6 +96,7 @@ class AppController extends BaseController
         $_ENV['MAIL_HOST'] = $mail['host'];
         $_ENV['MAIL_USERNAME'] = $mail['username'];
         $_ENV['MAIL_FROM_NAME'] = $mail['from']['name'];
+        $_ENV['MAIL_FROM_ADDRESS'] = $mail['from']['address'];
         $_ENV['MAIL_PASSWORD'] = $mail['password'];
         $_ENV['PHANTOMJS_CLOUD_KEY'] = 'a-demo-key-with-low-quota-per-ip-address';
         $_ENV['MAILGUN_DOMAIN'] = $mail['mailgun_domain'];
@@ -159,6 +159,7 @@ class AppController extends BaseController
 
         $_ENV['APP_URL'] = $app['url'];
         $_ENV['APP_DEBUG'] = Input::get('debug') ? 'true' : 'false';
+        $_ENV['REQUIRE_HTTPS'] = Input::get('https') ? 'true' : 'false';
 
         $_ENV['DB_TYPE'] = 'mysql'; // $db['default'];
         $_ENV['DB_HOST'] = $db['type']['host'];
@@ -173,8 +174,8 @@ class AppController extends BaseController
             $_ENV['MAIL_HOST'] = $mail['host'];
             $_ENV['MAIL_USERNAME'] = $mail['username'];
             $_ENV['MAIL_FROM_NAME'] = $mail['from']['name'];
+            $_ENV['MAIL_FROM_ADDRESS'] = $mail['from']['address'];
             $_ENV['MAIL_PASSWORD'] = $mail['password'];
-            $_ENV['MAIL_FROM_ADDRESS'] = $mail['username'];
             $_ENV['MAILGUN_DOMAIN'] = $mail['mailgun_domain'];
             $_ENV['MAILGUN_SECRET'] = $mail['mailgun_secret'];
         }
@@ -218,7 +219,7 @@ class AppController extends BaseController
 
     private function testMail($mail)
     {
-        $email = $mail['username'];
+        $email = $mail['from']['address'];
         $fromName = $mail['from']['name'];
 
         foreach ($mail as $key => $val) {
@@ -281,7 +282,7 @@ class AppController extends BaseController
                 // legacy fix: check cipher is in .env file
                 if ( ! env('APP_CIPHER')) {
                     $fp = fopen(base_path().'/.env', 'a');
-                    fwrite($fp, "\nAPP_CIPHER=rijndael-128");
+                    fwrite($fp, "\nAPP_CIPHER=AES-256-CBC");
                     fclose($fp);
                 }
 

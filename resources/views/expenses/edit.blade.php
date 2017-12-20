@@ -26,7 +26,11 @@
 	@if ($expense)
 		{!! Former::populate($expense) !!}
         {!! Former::populateField('should_be_invoiced', intval($expense->should_be_invoiced)) !!}
-        {!! Former::hidden('public_id') !!}
+
+        <div style="display:none">
+            {!! Former::text('public_id') !!}
+            {!! Former::text('invoice_id') !!}
+        </div>
 	@endif
 
     <div class="panel panel-default">
@@ -62,11 +66,17 @@
                             ->addGroupClass('amount')
                             ->append('<span data-bind="html: expenseCurrencyCode"></span>') !!}
 
-                    {!! Former::select('client_id')
-                            ->addOption('', '')
-                            ->label(trans('texts.client'))
-                            ->data_bind('combobox: client_id')
-                            ->addGroupClass('client-select') !!}
+                    @if ($expense && $expense->invoice_id)
+                        {!! Former::plaintext()
+                                ->label('client')
+                                ->value($expense->client->getDisplayName()) !!}
+                    @else
+                        {!! Former::select('client_id')
+                                ->addOption('', '')
+                                ->label(trans('texts.client'))
+                                ->data_bind('combobox: client_id')
+                                ->addGroupClass('client-select') !!}
+                    @endif
 
                     @if (!$expense || ($expense && !$expense->invoice_id && !$expense->client_id))
                         {!! Former::checkbox('should_be_invoiced')
@@ -167,26 +177,38 @@
         </div>
     </div>
 
-	<center class="buttons">
+    <center class="buttons">
         {!! Button::normal(trans('texts.cancel'))
                 ->asLinkTo(URL::to('/expenses'))
                 ->appendIcon(Icon::create('remove-circle'))
                 ->large() !!}
 
-        @if (Auth::user()->hasFeature(FEATURE_EXPENSES))
-            {!! Button::success(trans('texts.save'))
-                    ->appendIcon(Icon::create('floppy-disk'))
-                    ->large()
-                    ->submit() !!}
+        @if (Auth::user()->canCreateOrEdit(ENTITY_EXPENSE, $expense))
+            @if (Auth::user()->hasFeature(FEATURE_EXPENSES))
+                @if (!$expense || !$expense->is_deleted)
+                    {!! Button::success(trans('texts.save'))
+                            ->appendIcon(Icon::create('floppy-disk'))
+                            ->large()
+                            ->submit() !!}
+                @endif
 
-            @if ($expense)
-                {!! DropdownButton::normal(trans('texts.more_actions'))
-                      ->withContents($actions)
-                      ->large()
-                      ->dropup() !!}
+                @if ($expense && !$expense->trashed())
+                    {!! DropdownButton::normal(trans('texts.more_actions'))
+                          ->withContents($actions)
+                          ->large()
+                          ->dropup() !!}
+                @endif
+
+                @if ($expense && $expense->trashed())
+                    {!! Button::primary(trans('texts.restore'))
+                            ->withAttributes(['onclick' => 'submitAction("restore")'])
+                            ->appendIcon(Icon::create('cloud-download'))
+                            ->large() !!}
+                @endif
+
             @endif
         @endif
-	</center>
+    </center>
 
 	{!! Former::close() !!}
 
@@ -210,7 +232,11 @@
                 return false;
             }
 
-            return true;
+            @if (Auth::user()->canCreateOrEdit(ENTITY_EXPENSE, $expense))
+                return true;
+            @else
+                return false
+            @endif
         }
 
         function onClientChange() {
@@ -221,8 +247,9 @@
             }
         }
 
-        function submitAction(action) {
+        function submitAction(action, invoice_id) {
             $('#action').val(action);
+            $('#invoice_id').val(invoice_id);
             $('.main-form').submit();
         }
 

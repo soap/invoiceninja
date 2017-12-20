@@ -1,5 +1,6 @@
 <?php namespace App\Models;
 
+use Utils;
 use Laracasts\Presenter\PresentableTrait;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Events\ExpenseWasCreated;
@@ -31,6 +32,7 @@ class Expense extends EntityModel
         'client_id',
         'vendor_id',
         'expense_currency_id',
+        'expense_date',
         'invoice_currency_id',
         'amount',
         'foreign_amount',
@@ -46,6 +48,29 @@ class Expense extends EntityModel
         'tax_name2',
     ];
 
+    public static function getImportColumns()
+    {
+        return [
+            'client',
+            'vendor',
+            'amount',
+            'public_notes',
+            'expense_category',
+            'expense_date',
+        ];
+    }
+
+    public static function getImportMap()
+    {
+        return [
+            'amount|total' => 'amount',
+            'category' => 'expense_category',
+            'client' => 'client',
+            'vendor' => 'vendor',
+            'notes|details' => 'public_notes',
+            'date' => 'expense_date',
+        ];
+    }
     /**
      * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
      */
@@ -107,10 +132,13 @@ class Expense extends EntityModel
      */
     public function getName()
     {
-        if($this->expense_number)
-            return $this->expense_number;
-
-        return $this->public_id;
+        if ($this->transaction_id) {
+            return $this->transaction_id;
+        } elseif ($this->public_notes) {
+            return mb_strimwidth($this->public_notes, 0, 16, "...");
+        } else {
+            return '#' . $this->public_id;
+        }
     }
 
     /**
@@ -178,6 +206,68 @@ class Expense extends EntityModel
 
         return $query;
     }
+
+    public function amountWithTax()
+    {
+        return Utils::calculateTaxes($this->amount, $this->tax_rate1, $this->tax_rate2);
+    }
+
+    public static function getStatuses($entityType = false)
+    {
+        $statuses = [];
+        $statuses[EXPENSE_STATUS_LOGGED] = trans('texts.logged');
+        $statuses[EXPENSE_STATUS_INVOICED] = trans('texts.invoiced');
+        $statuses[EXPENSE_STATUS_PAID] = trans('texts.paid');
+
+        return $statuses;
+    }
+
+    public static function calcStatusLabel($shouldBeInvoiced, $invoiceId, $balance)
+    {
+        if ($invoiceId) {
+            if (floatval($balance) > 0) {
+                $label = 'invoiced';
+            } else {
+                $label = 'paid';
+            }
+        } elseif ($shouldBeInvoiced) {
+            $label = 'pending';
+        } else {
+            $label = 'logged';
+        }
+
+        return trans("texts.{$label}");
+    }
+
+    public static function calcStatusClass($shouldBeInvoiced, $invoiceId, $balance)
+    {
+        if ($invoiceId) {
+            if (floatval($balance) > 0) {
+                return 'default';
+            } else {
+                return 'success';
+            }
+        } elseif ($shouldBeInvoiced) {
+            return 'warning';
+        } else {
+            return 'primary';
+        }
+    }
+
+    public function statusClass()
+    {
+        $balance = $this->invoice ? $this->invoice->balance : 0;
+
+        return static::calcStatusClass($this->should_be_invoiced, $this->invoice_id, $balance);
+    }
+
+    public function statusLabel()
+    {
+        $balance = $this->invoice ? $this->invoice->balance : 0;
+
+        return static::calcStatusLabel($this->should_be_invoiced, $this->invoice_id, $balance);
+    }
+
 }
 
 Expense::creating(function ($expense) {
@@ -198,8 +288,4 @@ Expense::updated(function ($expense) {
 
 Expense::deleting(function ($expense) {
     $expense->setNullValues();
-});
-
-Expense::deleted(function ($expense) {
-    event(new ExpenseWasDeleted($expense));
 });

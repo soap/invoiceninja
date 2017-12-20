@@ -97,19 +97,12 @@ function ViewModel(data) {
         }
 
         var isValid = true;
-        $('input.client-email').each(function(item, value) {
-            var $email = $(value);
-            var email = $(value).val();
-
-            // Trim whitespace
-            email = (email || '').trim();
-            $email.val(email);
-
-            if (!firstName && (!email || !isValidEmailAddress(email))) {
+        var contacts = self.invoice().client().contacts();
+        $(contacts).each(function(item, value) {
+            if (!value.isValid()) {
                 isValid = false;
             }
         });
-
         if (!isValid) {
             $('#emailError').css( "display", "inline" );
             return;
@@ -160,6 +153,7 @@ function ViewModel(data) {
 function InvoiceModel(data) {
     var self = this;
     this.client = ko.observable(data ? false : new ClientModel());
+    this.is_public = ko.observable(0);
     self.account = {!! $account !!};
     self.id = ko.observable('');
     self.discount = ko.observable('');
@@ -233,6 +227,9 @@ function InvoiceModel(data) {
     }
 
     self.addItem = function() {
+        if (self.invoice_items().length >= {{ MAX_INVOICE_ITEMS }}) {
+            return false;
+        }
         var itemModel = new ItemModel();
         @if ($account->hide_quantity)
             itemModel.qty(1);
@@ -293,40 +290,6 @@ function InvoiceModel(data) {
         }
     })
 
-    self.wrapped_terms = ko.computed({
-        read: function() {
-            return this.terms();
-        },
-        write: function(value) {
-            value = wordWrapText(value, 300);
-            self.terms(value);
-        },
-        owner: this
-    });
-
-
-    self.wrapped_notes = ko.computed({
-        read: function() {
-            return this.public_notes();
-        },
-        write: function(value) {
-            value = wordWrapText(value, 300);
-            self.public_notes(value);
-        },
-        owner: this
-    });
-
-    self.wrapped_footer = ko.computed({
-        read: function() {
-            return this.invoice_footer();
-        },
-        write: function(value) {
-            value = wordWrapText(value, 600);
-            self.invoice_footer(value);
-        },
-        owner: this
-    });
-
     self.removeItem = function(item) {
         self.invoice_items.remove(item);
         refreshPDF(true);
@@ -344,6 +307,7 @@ function InvoiceModel(data) {
         for(var p=0; p < self.invoice_items().length; ++p) {
             var item = self.invoice_items()[p];
             total += item.totals.rawTotal();
+            total = roundToTwo(total);
         }
         return total;
     });
@@ -627,6 +591,8 @@ function ContactModel(data) {
     self.invitation_openend = ko.observable(false);
     self.invitation_viewed = ko.observable(false);
     self.email_error = ko.observable('');
+    self.invitation_signature_svg = ko.observable('');
+    self.invitation_signature_date = ko.observable('');
 
     if (data) {
         ko.mapping.fromJS(data, {}, this);
@@ -676,6 +642,18 @@ function ContactModel(data) {
             return '#B1B5BA';
         }
     });
+
+    self.isValid = function() {
+        var email = (self.email() || '').trim();
+        var emailValid = isValidEmailAddress(email);
+
+        // if the email is set it must be valid
+        if (email && ! emailValid) {
+            return false;
+        } else {
+            return self.first_name() || email;
+        }
+    }
 }
 
 function ItemModel(data) {
@@ -741,18 +719,6 @@ function ItemModel(data) {
     if (data) {
         ko.mapping.fromJS(data, {}, this);
     }
-
-    self.wrapped_notes = ko.computed({
-        read: function() {
-            return this.notes();
-        },
-        write: function(value) {
-            value = wordWrapText(value, 235);
-            self.notes(value);
-            onItemChange();
-        },
-        owner: this
-    });
 
     this.totals = ko.observable();
 
@@ -896,7 +862,7 @@ ko.bindingHandlers.productTypeahead = {
 };
 
 function checkInvoiceNumber() {
-    var url = '{{ url('check_invoice_number') }}/' + $('#invoice_number').val();
+    var url = '{{ url('check_invoice_number') }}/{{ $invoice->exists ? $invoice->public_id : '' }}?invoice_number=' + encodeURIComponent($('#invoice_number').val());
     $.get(url, function(data) {
         var isValid = data == '{{ RESULT_SUCCESS }}' ? true : false;
         if (isValid) {

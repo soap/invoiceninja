@@ -24,12 +24,14 @@ class ExpensePresenter extends EntityPresenter
         return Utils::fromSqlDate($this->entity->expense_date);
     }
 
-    /**
-     * @return int
-     */
-    public function invoiced_amount()
+    public function amount()
     {
-        return $this->entity->invoice_id ? $this->entity->convertedAmount() : 0;
+        return Utils::formatMoney($this->entity->amount, $this->entity->expense_currency_id);
     }
-    
+
+    public function category()
+    {
+        return $this->entity->expense_category ? $this->entity->expense_category->name : '';
+    }
+
 }

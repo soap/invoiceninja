@@ -1,10 +1,12 @@
 <?php namespace App\Http\Controllers;
 
 use Response;
+use Request;
 use Redirect;
 use Auth;
 use View;
 use Input;
+use Mail;
 use Session;
 use App\Models\Account;
 use App\Libraries\Utils;
@@ -38,7 +40,7 @@ class HomeController extends BaseController
     public function showIndex()
     {
         Session::reflash();
-        
+
         if (!Utils::isNinja() && (!Utils::isDatabaseSetup() || Account::count() == 0)) {
             return Redirect::to('/setup');
         } elseif (Auth::check()) {
@@ -76,10 +78,8 @@ class HomeController extends BaseController
         }
 
         // Track the referral/campaign code
-        foreach (['rc', 'utm_campaign'] as $code) {
-            if (Input::has($code)) {
-                Session::set(SESSION_REFERRAL_CODE, Input::get($code));
-            }
+        if (Input::has('rc')) {
+            Session::set(SESSION_REFERRAL_CODE, Input::get('rc'));
         }
 
         if (Auth::check()) {
@@ -115,7 +115,7 @@ class HomeController extends BaseController
                 $user->save();
             }
         }
-        
+
         Session::forget('news_feed_message');
 
         return 'success';
@@ -135,5 +135,25 @@ class HomeController extends BaseController
     public function keepAlive()
     {
         return RESULT_SUCCESS;
+    }
+
+    /**
+     * @return mixed
+     */
+    public function contactUs()
+    {
+        Mail::raw(request()->message, function ($message) {
+            $subject = 'Customer Message';
+            if ( ! Utils::isNinja()) {
+                $subject .= ': v' . NINJA_VERSION;
+            }
+            $message->to(CONTACT_EMAIL)
+                    ->from(CONTACT_EMAIL, Auth::user()->present()->fullName)
+                    ->replyTo(Auth::user()->email, Auth::user()->present()->fullName)
+                    ->subject($subject);
+        });
+
+        return redirect(Request::server('HTTP_REFERER'))
+                    ->with('message', trans('texts.contact_us_response'));
     }
 }

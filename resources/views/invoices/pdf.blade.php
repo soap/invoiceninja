@@ -48,7 +48,7 @@
         <button type="button" class="btn btn-default" data-dismiss="modal">{{ trans('texts.cancel') }}</button>
 
         @if (Utils::isNinjaProd())
-          <a class="btn btn-primary" href="{{ url('/settings/account_management?upgrade=true') }}">{{ trans('texts.go_pro') }}</a>
+          <a class="btn btn-primary" href="javascript:showUpgradeModal()">{{ trans('texts.go_pro') }}</a>
         @else
           <button type="button" class="btn btn-primary" onclick="buyProduct('{{ INVOICE_DESIGNS_AFFILIATE_KEY }}', '{{ PRODUCT_INVOICE_DESIGNS }}')">{{ trans('texts.buy') }}</button>
         @endif
@@ -117,10 +117,11 @@
   function refreshPDFCB(string) {
     if (!string) return;
     PDFJS.workerSrc = '{{ asset('js/pdf_viewer.worker.js') }}';
-    var forceJS = {{ Auth::check() && Auth::user()->force_pdfjs ? 'false' : 'true' }};
-    // Temporarily workaround for: https://code.google.com/p/chromium/issues/detail?id=574648
-    if (forceJS && (isFirefox || (isChrome && (!isChrome48 || {{ isset($viewPDF) && $viewPDF ? 'true' : 'false' }})))) {
+    var forceJS = {{ Auth::check() && Auth::user()->force_pdfjs ? 'true' : 'false' }};
+    // Use the browser's built in PDF viewer
+    if ((isChrome || isFirefox) && ! forceJS) {
       $('#theFrame').attr('src', string).show();
+    // Use PDFJS to view the PDF
     } else {
       if (isRefreshing) {
         needsRefresh = true;

@@ -2,6 +2,7 @@
 
 use Auth;
 use Request;
+use Input;
 use Session;
 use Utils;
 use URL;
@@ -27,6 +28,11 @@ class AccountRepository
     public function create($firstName = '', $lastName = '', $email = '', $password = '')
     {
         $company = new Company();
+        $company->utm_source = Input::get('utm_source');
+        $company->utm_medium = Input::get('utm_medium');
+        $company->utm_campaign = Input::get('utm_campaign');
+        $company->utm_term = Input::get('utm_term');
+        $company->utm_content = Input::get('utm_content');
         $company->save();
 
         $account = new Account();
@@ -119,7 +125,7 @@ class AccountRepository
             if ($client->name) {
                 $data['clients'][] = [
                     'value' => $client->name,
-                    'tokens' => $client->name,
+                    'tokens' => implode(',', [$client->name, $client->id_number, $client->vat_number, $client->work_phone]),
                     'url' => $client->present()->url,
                 ];
             }
@@ -140,27 +146,18 @@ class AccountRepository
             }
 
             foreach ($client->contacts as $contact) {
-                if ($contact->getFullName()) {
-                    $data['contacts'][] = [
-                        'value' => $contact->getDisplayName(),
-                        'tokens' => $contact->getDisplayName(),
-                        'url' => $client->present()->url,
-                    ];
-                }
-                if ($contact->email) {
-                    $data['contacts'][] = [
-                        'value' => $contact->email,
-                        'tokens' => $contact->email,
-                        'url' => $client->present()->url,
-                    ];
-                }
+                $data['contacts'][] = [
+                    'value' => $contact->getDisplayName(),
+                    'tokens' => implode(',', [$contact->first_name, $contact->last_name, $contact->email, $contact->phone]),
+                    'url' => $client->present()->url,
+                ];
             }
 
             foreach ($client->invoices as $invoice) {
                 $entityType = $invoice->getEntityType();
                 $data["{$entityType}s"][] = [
                     'value' => $invoice->getDisplayName() . ': ' . $client->getDisplayName(),
-                    'tokens' => $invoice->getDisplayName() . ': ' . $client->getDisplayName(),
+                    'tokens' => implode(',', [$invoice->invoice_number, $invoice->po_number]),
                     'url' => $invoice->present()->url,
                 ];
             }
@@ -181,7 +178,8 @@ class AccountRepository
             ENTITY_VENDOR,
             ENTITY_RECURRING_INVOICE,
             ENTITY_PAYMENT,
-            ENTITY_CREDIT
+            ENTITY_CREDIT,
+            ENTITY_PROJECT,
         ];
 
         foreach ($entityTypes as $entityType) {
@@ -203,7 +201,8 @@ class AccountRepository
             ['new_user', '/users/create'],
             ['custom_fields', '/settings/invoice_settings'],
             ['invoice_number', '/settings/invoice_settings'],
-            ['buy_now_buttons', '/settings/client_portal#buyNow']
+            ['buy_now_buttons', '/settings/client_portal#buy_now'],
+            ['invoice_fields', '/settings/invoice_design#invoice_fields'],
         ]);
 
         $settings = array_merge(Account::$basicSettings, Account::$advancedSettings);
@@ -270,15 +269,29 @@ class AccountRepository
 
         $account = $this->getNinjaAccount();
         $lastInvoice = Invoice::withTrashed()->whereAccountId($account->id)->orderBy('public_id', 'DESC')->first();
+        $renewalDate = $clientAccount->getRenewalDate();
         $publicId = $lastInvoice ? ($lastInvoice->public_id + 1) : 1;
+
         $invoice = new Invoice();
+        $invoice->is_public = true;
         $invoice->account_id = $account->id;
         $invoice->user_id = $account->users()->first()->id;
         $invoice->public_id = $publicId;
         $invoice->client_id = $client->id;
         $invoice->invoice_number = $account->getNextInvoiceNumber($invoice);
-        $invoice->invoice_date = $clientAccount->getRenewalDate();
+        $invoice->invoice_date = $renewalDate->format('Y-m-d');
         $invoice->amount = $invoice->balance = $plan_cost - $credit;
+        $invoice->invoice_type_id = INVOICE_TYPE_STANDARD;
+
+        // check for promo/discount
+        $clientCompany = $clientAccount->company;
+        if ($clientCompany->hasActivePromo() || $clientCompany->hasActiveDiscount($renewalDate)) {
+            $discount = $invoice->amount * $clientCompany->discount;
+            $invoice->discount = $clientCompany->discount * 100;
+            $invoice->amount -= $discount;
+            $invoice->balance -= $discount;
+        }
+
         $invoice->save();
 
         if ($credit) {

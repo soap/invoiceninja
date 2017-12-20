@@ -89,6 +89,10 @@ class Client extends EntityModel
      * @var string
      */
     public static $fieldWebsite = 'website';
+    /**
+     * @var string
+     */
+    public static $fieldVatNumber = 'vat_number';
 
     /**
      * @return array
@@ -106,6 +110,7 @@ class Client extends EntityModel
             Client::$fieldCountry,
             Client::$fieldNotes,
             Client::$fieldWebsite,
+            Client::$fieldVatNumber,
             Contact::$fieldFirstName,
             Contact::$fieldLastName,
             Contact::$fieldPhone,
@@ -132,6 +137,7 @@ class Client extends EntityModel
             'country' => 'country',
             'note' => 'notes',
             'site|website' => 'website',
+            'vat' => 'vat_number',
         ];
     }
 
@@ -157,6 +163,22 @@ class Client extends EntityModel
     public function invoices()
     {
         return $this->hasMany('App\Models\Invoice');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function quotes()
+    {
+        return $this->hasMany('App\Models\Invoice')->where('invoice_type_id', '=', INVOICE_TYPE_QUOTE);
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function publicQuotes()
+    {
+        return $this->hasMany('App\Models\Invoice')->where('invoice_type_id', '=', INVOICE_TYPE_QUOTE)->whereIsPublic(true);
     }
 
     /**
@@ -221,6 +243,14 @@ class Client extends EntityModel
     public function credits()
     {
         return $this->hasMany('App\Models\Credit');
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function creditsWithBalance()
+    {
+        return $this->hasMany('App\Models\Credit')->where('balance', '>', 0);
     }
 
     /**
@@ -328,6 +358,7 @@ class Client extends EntityModel
         }
 
         $contact = $this->contacts[0];
+
         return $contact->getDisplayName();
     }
 
@@ -346,6 +377,14 @@ class Client extends EntityModel
     public function getEntityType()
     {
         return ENTITY_CLIENT;
+    }
+
+    /**
+     * @return bool
+     */
+    public function showMap()
+    {
+        return $this->hasAddress() && env('GOOGLE_MAPS_ENABLED') !== false;
     }
 
     /**

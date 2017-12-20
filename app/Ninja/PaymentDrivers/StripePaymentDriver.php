@@ -151,14 +151,17 @@ class StripePaymentDriver extends BasePaymentDriver
     protected function creatingPaymentMethod($paymentMethod)
     {
         $data = $this->tokenResponse;
+        $source = false;
 
         if (!empty($data['object']) && ($data['object'] == 'card' || $data['object'] == 'bank_account')) {
             $source = $data;
         } elseif (!empty($data['object']) && $data['object'] == 'customer') {
             $sources = !empty($data['sources']) ? $data['sources'] : $data['cards'];
             $source = reset($sources['data']);
-        } else {
-            $source = !empty($data['source']) ? $data['source'] : $data['card'];
+        } elseif (!empty($data['source'])) {
+            $source = $data['source'];
+        } elseif (!empty($data['card'])) {
+            $source = $data['card'];
         }
 
         if ( ! $source) {
@@ -402,7 +405,7 @@ class StripePaymentDriver extends BasePaymentDriver
             $paymentMethod = PaymentMethod::scope(false, $accountId)->where('source_reference', '=', $sourceRef)->first();
 
             if (!$paymentMethod) {
-                throw new Exception('Unknown payment method');
+                return false;
             }
 
             if ($eventType == 'customer.source.deleted' || $eventType == 'customer.bank_account.deleted') {

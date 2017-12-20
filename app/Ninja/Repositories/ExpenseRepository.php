@@ -54,12 +54,12 @@ class ExpenseRepository extends BaseRepository
                     ->where('contacts.deleted_at', '=', null)
                     ->where('vendors.deleted_at', '=', null)
                     ->where('clients.deleted_at', '=', null)
-                    ->where(function ($query) {
+                    ->where(function ($query) { // handle when client isn't set
                         $query->where('contacts.is_primary', '=', true)
                               ->orWhere('contacts.is_primary', '=', null);
                     })
                     ->select(
-                        DB::raw('COALESCE(expenses.invoice_id, expenses.should_be_invoiced) expense_status_id'),
+                        DB::raw('COALESCE(expenses.invoice_id, expenses.should_be_invoiced) status'),
                         'expenses.account_id',
                         'expenses.amount',
                         'expenses.deleted_at',
@@ -76,6 +76,8 @@ class ExpenseRepository extends BaseRepository
                         'expenses.expense_currency_id',
                         'expenses.invoice_currency_id',
                         'expenses.user_id',
+                        'expenses.tax_rate1',
+                        'expenses.tax_rate2',
                         'expense_categories.name as category',
                         'invoices.public_id as invoice_public_id',
                         'invoices.user_id as invoice_user_id',
@@ -92,10 +94,28 @@ class ExpenseRepository extends BaseRepository
                         'clients.country_id as client_country_id'
                     );
 
-        $showTrashed = \Session::get('show_trash:expense');
+        $this->applyFilters($query, ENTITY_EXPENSE);
 
-        if (!$showTrashed) {
-            $query->where('expenses.deleted_at', '=', null);
+        if ($statuses = session('entity_status_filter:' . ENTITY_EXPENSE)) {
+            $statuses = explode(',', $statuses);
+            $query->where(function ($query) use ($statuses) {
+                $query->whereNull('expenses.id');
+
+                if (in_array(EXPENSE_STATUS_LOGGED, $statuses)) {
+                    $query->orWhere('expenses.invoice_id', '=', 0)
+                          ->orWhereNull('expenses.invoice_id');
+                }
+                if (in_array(EXPENSE_STATUS_INVOICED, $statuses)) {
+                    $query->orWhere('expenses.invoice_id', '>', 0);
+                    if ( ! in_array(EXPENSE_STATUS_PAID, $statuses)) {
+                        $query->where('invoices.balance', '>', 0);
+                    }
+                }
+                if (in_array(EXPENSE_STATUS_PAID, $statuses)) {
+                    $query->orWhere('invoices.balance', '=', 0)
+                          ->where('expenses.invoice_id', '>', 0);
+                }
+            });
         }
 
         if ($filter) {
@@ -118,20 +138,24 @@ class ExpenseRepository extends BaseRepository
             // do nothing
         } elseif ($publicId) {
             $expense = Expense::scope($publicId)->firstOrFail();
-            \Log::warning('Entity not set in expense repo save');
+            if (Utils::isNinjaDev()) {
+                \Log::warning('Entity not set in expense repo save');
+            }
         } else {
             $expense = Expense::createNew();
+        }
+
+        if ($expense->is_deleted) {
+            return $expense;
         }
 
         // First auto fill
         $expense->fill($input);
 
-        $expense->expense_date = Utils::toSqlDate($input['expense_date']);
-
-        if (isset($input['private_notes'])) {
-            $expense->private_notes = trim($input['private_notes']);
+        if (isset($input['expense_date'])) {
+            $expense->expense_date = Utils::toSqlDate($input['expense_date']);
         }
-        $expense->public_notes = trim($input['public_notes']);
+
         $expense->should_be_invoiced = isset($input['should_be_invoiced']) && floatval($input['should_be_invoiced']) || $expense->client_id ? true : false;
 
         if ( ! $expense->expense_currency_id) {
@@ -143,7 +167,9 @@ class ExpenseRepository extends BaseRepository
 
         $rate = isset($input['exchange_rate']) ? Utils::parseFloat($input['exchange_rate']) : 1;
         $expense->exchange_rate = round($rate, 4);
-        $expense->amount = round(Utils::parseFloat($input['amount']), 2);
+        if (isset($input['amount'])) {
+            $expense->amount = round(Utils::parseFloat($input['amount']), 2);
+        }
 
         $expense->save();
 
@@ -172,28 +198,5 @@ class ExpenseRepository extends BaseRepository
         }
 
         return $expense;
-    }
-
-    public function bulk($ids, $action)
-    {
-        $expenses = Expense::withTrashed()->scope($ids)->get();
-
-        foreach ($expenses as $expense) {
-            if ($action == 'restore') {
-                $expense->restore();
-
-                $expense->is_deleted = false;
-                $expense->save();
-            } else {
-                if ($action == 'delete') {
-                    $expense->is_deleted = true;
-                    $expense->save();
-                }
-
-                $expense->delete();
-            }
-        }
-
-        return count($tasks);
     }
 }

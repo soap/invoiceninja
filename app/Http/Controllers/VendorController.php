@@ -15,6 +15,7 @@ use App\Services\VendorService;
 use App\Http\Requests\VendorRequest;
 use App\Http\Requests\CreateVendorRequest;
 use App\Http\Requests\UpdateVendorRequest;
+use App\Ninja\Datatables\VendorDatatable;
 
 class VendorController extends BaseController
 {
@@ -37,19 +38,10 @@ class VendorController extends BaseController
      */
     public function index()
     {
-        return View::make('list', [
+        return View::make('list_wrapper', [
             'entityType' => 'vendor',
+            'datatable' => new VendorDatatable(),
             'title' => trans('texts.vendors'),
-            'sortCol' => '4',
-            'columns' => Utils::trans([
-              'checkbox',
-              'vendor',
-              'city',
-              'phone',
-              'email',
-              'date_created',
-              ''
-            ]),
         ]);
     }
 
@@ -81,8 +73,6 @@ class VendorController extends BaseController
     public function show(VendorRequest $request)
     {
         $vendor = $request->entity();
-                
-        Utils::trackViewed($vendor->getDisplayName(), 'vendor');
 
         $actionLinks = [
             ['label' => trans('texts.new_vendor'), 'url' => URL::to('/vendors/create/' . $vendor->public_id)]
@@ -92,7 +82,6 @@ class VendorController extends BaseController
             'actionLinks'           => $actionLinks,
             'showBreadcrumbs'       => false,
             'vendor'                => $vendor,
-            'totalexpense'          => $vendor->getTotalExpense(),
             'title'                 => trans('texts.view_vendor'),
             'hasRecurringInvoices'  => false,
             'hasQuotes'             => false,
@@ -134,7 +123,7 @@ class VendorController extends BaseController
     public function edit(VendorRequest $request)
     {
         $vendor = $request->entity();
-        
+
         $data = [
             'vendor' => $vendor,
             'method' => 'PUT',
@@ -187,10 +176,6 @@ class VendorController extends BaseController
         $message = Utils::pluralize($action.'d_vendor', $count);
         Session::flash('message', $message);
 
-        if ($action == 'restore' && $count == 1) {
-            return Redirect::to('vendors/' . Utils::getFirst($ids));
-        } else {
-            return Redirect::to('vendors');
-        }
+        return $this->returnBulk($this->entityType, $action, $ids);
     }
 }

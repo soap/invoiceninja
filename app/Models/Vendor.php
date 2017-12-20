@@ -211,7 +211,8 @@ class Vendor extends EntityModel
      */
     public function addVendorContact($data, $isPrimary = false)
     {
-        $publicId = isset($data['public_id']) ? $data['public_id'] : false;
+        //$publicId = isset($data['public_id']) ? $data['public_id'] : false;
+        $publicId = isset($data['public_id']) ? $data['public_id'] : (isset($data['id']) ? $data['id'] : false);
 
         if ($publicId && $publicId != '-1') {
             $contact = VendorContact::scope($publicId)->firstOrFail();
@@ -269,6 +270,14 @@ class Vendor extends EntityModel
     /**
      * @return bool
      */
+    public function showMap()
+    {
+        return $this->hasAddress() && env('GOOGLE_MAPS_ENABLED') !== false;
+    }
+
+    /**
+     * @return bool
+     */
     public function hasAddress()
     {
         $fields = [
@@ -320,12 +329,14 @@ class Vendor extends EntityModel
     /**
      * @return float|int
      */
-    public function getTotalExpense()
+    public function getTotalExpenses()
     {
         return DB::table('expenses')
-                ->where('vendor_id', '=', $this->id)
-                ->whereNull('deleted_at')
-                ->sum('amount');
+                ->select('expense_currency_id', DB::raw('SUM(amount) as amount'))
+                ->whereVendorId($this->id)
+                ->whereIsDeleted(false)
+                ->groupBy('expense_currency_id')
+                ->get();
     }
 }
 

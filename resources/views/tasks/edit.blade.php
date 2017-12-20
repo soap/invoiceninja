@@ -12,19 +12,21 @@
     <style type="text/css">
 
     input.time-input {
-        width: 110px;
+        width: 100%;
         font-size: 14px !important;
     }
 
     </style>
 
-
     @if ($errors->first('time_log'))
         <div class="alert alert-danger"><li>{{ trans('texts.task_errors') }}  </li></div>
     @endif
 
+    {!! Former::open($url)
+            ->addClass('col-md-10 col-md-offset-1 warn-on-exit task-form')
+            ->onsubmit('return onFormSubmit(event)')
+            ->method($method) !!}
 
-    {!! Former::open($url)->addClass('col-md-10 col-md-offset-1 warn-on-exit task-form')->method($method)->rules(array()) !!}
     @if ($task)
         {!! Former::populate($task) !!}
         {!! Former::populateField('id', $task->public_id) !!}
@@ -45,7 +47,21 @@
             <div class="panel panel-default">
             <div class="panel-body">
 
-            {!! Former::select('client')->addOption('', '')->addGroupClass('client-select') !!}
+            @if ($task && $task->invoice_id)
+                {!! Former::plaintext()
+                        ->label('client')
+                        ->value($task->client->getDisplayName()) !!}
+                @if ($task->project)
+                    {!! Former::plaintext()
+                            ->label('project')
+                            ->value($task->present()->project) !!}
+                @endif
+            @else
+                {!! Former::select('client')->addOption('', '')->addGroupClass('client-select') !!}
+                {!! Former::select('project_id')->addOption('', '')->addGroupClass('project-select')
+                        ->label(trans('texts.project')) !!}
+            @endif
+
             {!! Former::textarea('description')->rows(3) !!}
 
             @if ($task)
@@ -127,13 +143,19 @@
 
 
     <center class="buttons">
+
+    @if (Auth::user()->canCreateOrEdit(ENTITY_TASK, $task))
         @if (Auth::user()->hasFeature(FEATURE_TASKS))
             @if ($task && $task->is_running)
                 {!! Button::success(trans('texts.save'))->large()->appendIcon(Icon::create('floppy-disk'))->withAttributes(['id' => 'save-button']) !!}
                 {!! Button::primary(trans('texts.stop'))->large()->appendIcon(Icon::create('stop'))->withAttributes(['id' => 'stop-button']) !!}
+            @elseif ($task && $task->is_deleted)
+                {!! Button::normal(trans('texts.cancel'))->large()->asLinkTo(URL::to('/tasks'))->appendIcon(Icon::create('remove-circle')) !!}
+                {!! Button::primary(trans('texts.restore'))->large()->withAttributes(['onclick' => 'submitAction("restore")'])->appendIcon(Icon::create('cloud-download')) !!}
             @elseif ($task && $task->trashed())
                 {!! Button::normal(trans('texts.cancel'))->large()->asLinkTo(URL::to('/tasks'))->appendIcon(Icon::create('remove-circle')) !!}
-                {!! Button::success(trans('texts.restore'))->large()->withAttributes(['onclick' => 'submitAction("restore")'])->appendIcon(Icon::create('cloud-download')) !!}
+                {!! Button::success(trans('texts.save'))->large()->appendIcon(Icon::create('floppy-disk'))->withAttributes(['id' => 'save-button']) !!}
+                {!! Button::primary(trans('texts.restore'))->large()->withAttributes(['onclick' => 'submitAction("restore")'])->appendIcon(Icon::create('cloud-download')) !!}
             @else
                 {!! Button::normal(trans('texts.cancel'))->large()->asLinkTo(URL::to('/tasks'))->appendIcon(Icon::create('remove-circle')) !!}
                 @if ($task)
@@ -151,7 +173,9 @@
         @else
             {!! Button::normal(trans('texts.cancel'))->large()->asLinkTo(URL::to('/tasks'))->appendIcon(Icon::create('remove-circle')) !!}
         @endif
-    </center>
+    @endif
+
+</center>
 
     {!! Former::close() !!}
 
@@ -198,18 +222,30 @@
     }
 
     var clients = {!! $clients !!};
+    var projects = {!! $projects !!};
+
     var timeLabels = {};
     @foreach (['hour', 'minute', 'second'] as $period)
         timeLabels['{{ $period }}'] = '{{ trans("texts.{$period}") }}';
         timeLabels['{{ $period }}s'] = '{{ trans("texts.{$period}s") }}';
     @endforeach
 
-    function tock(duration) {
+    function onFormSubmit(event) {
+        @if (Auth::user()->canCreateOrEdit(ENTITY_TASK, $task))
+            return true;
+        @else
+            return false
+        @endif
+    }
+
+    function tock(startTime) {
+        var duration = new Date().getTime() - startTime;
+        duration = Math.floor(duration / 100) / 10;
         var str = convertDurationToString(duration);
         $('#duration-text').html(str);
 
         setTimeout(function() {
-            tock(duration+1);
+            tock(startTime);
         }, 1000);
     }
 
@@ -405,26 +441,10 @@
     ko.applyBindings(model);
 
     $(function() {
-        var $clientSelect = $('select#client');
-        for (var i=0; i<clients.length; i++) {
-            var client = clients[i];
-            var clientName = getClientDisplayName(client);
-            if (!clientName) {
-                continue;
-            }
-            $clientSelect.append(new Option(clientName, client.public_id));
-        }
-
-        if ({{ $clientPublicId ? 'true' : 'false' }}) {
-            $clientSelect.val({{ $clientPublicId }});
-        }
-
-        $clientSelect.combobox();
-
         @if (!$task && !$clientPublicId)
             $('.client-select input.form-control').focus();
         @else
-            $('#amount').focus();
+            $('#description').focus();
         @endif
 
         $('input[type=radio]').change(function(event) {
@@ -465,7 +485,7 @@
 
         @if ($task)
             @if ($task->is_running)
-                tock({{ $duration }});
+                tock({{ $task->getLastStartTime() * 1000 }});
             @endif
         @endif
 
@@ -474,6 +494,98 @@
             model.showTimeOverlaps();
             showTimeDetails();
         @endif
+
+        // setup clients and project comboboxes
+        var clientId = {{ $clientPublicId }};
+        var projectId = {{ $projectPublicId }};
+
+        var clientMap = {};
+        var projectMap = {};
+        var projectsForClientMap = {};
+        var projectsForAllClients = [];
+        var $clientSelect = $('select#client');
+
+        for (var i=0; i<projects.length; i++) {
+          var project = projects[i];
+          projectMap[project.public_id] = project;
+
+          var client = project.client;
+          if (!client) {
+              projectsForAllClients.push(project);
+          } else {
+              if (!projectsForClientMap.hasOwnProperty(client.public_id)) {
+                projectsForClientMap[client.public_id] = [];
+              }
+              projectsForClientMap[client.public_id].push(project);
+          }
+        }
+
+        for (var i=0; i<clients.length; i++) {
+          var client = clients[i];
+          clientMap[client.public_id] = client;
+        }
+
+        $clientSelect.append(new Option('', ''));
+        for (var i=0; i<clients.length; i++) {
+          var client = clients[i];
+          var clientName = getClientDisplayName(client);
+          if (!clientName) {
+              continue;
+          }
+          $clientSelect.append(new Option(clientName, client.public_id));
+        }
+
+        if (clientId) {
+          $clientSelect.val(clientId);
+        }
+
+        $clientSelect.combobox();
+        $clientSelect.on('change', function(e) {
+          var clientId = $('input[name=client]').val();
+          var projectId = $('input[name=project_id]').val();
+          var project = projectMap[projectId];
+          if (project && ((project.client && project.client.public_id == clientId) || !project.client)) {
+            e.preventDefault();
+            return;
+          }
+          setComboboxValue($('.project-select'), '', '');
+          $projectCombobox = $('select#project_id');
+          $projectCombobox.find('option').remove().end().combobox('refresh');
+          $projectCombobox.append(new Option('', ''));
+          var list = clientId ? (projectsForClientMap.hasOwnProperty(clientId) ? projectsForClientMap[clientId] : []).concat(projectsForAllClients) : projects;
+          for (var i=0; i<list.length; i++) {
+            var project = list[i];
+            $projectCombobox.append(new Option(project.name,  project.public_id));
+          }
+          $('select#project_id').combobox('refresh');
+        });
+
+        var $projectSelect = $('select#project_id').on('change', function(e) {
+          $clientCombobox = $('select#client');
+          var projectId = $('input[name=project_id]').val();
+          if (projectId) {
+            var project = projectMap[projectId];
+            if (project.client) {
+                var client = clientMap[project.client.public_id];
+                if (client) {
+                    project.client = client;
+                    setComboboxValue($('.client-select'), client.public_id, getClientDisplayName(client));
+                }
+            }
+          } else {
+            $clientSelect.trigger('change');
+          }
+        });
+
+        $projectSelect.combobox();
+
+        if (projectId) {
+           var project = projectMap[projectId];
+           setComboboxValue($('.project-select'), project.public_id, project.name);
+           $projectSelect.trigger('change');
+        } else {
+           $clientSelect.trigger('change');
+        }
     });
 
     </script>

@@ -15,6 +15,16 @@ class Task extends EntityModel
     use PresentableTrait;
 
     /**
+     * @var array
+     */
+    protected $fillable = [
+        'client_id',
+        'description',
+        'time_log',
+        'is_running',
+    ];
+
+    /**
      * @return mixed
      */
     public function getEntityType()
@@ -60,6 +70,14 @@ class Task extends EntityModel
     }
 
     /**
+     * @return mixed
+     */
+    public function project()
+    {
+        return $this->belongsTo('App\Models\Project')->withTrashed();
+    }
+
+    /**
      * @param $task
      * @return string
      */
@@ -80,6 +98,18 @@ class Task extends EntityModel
     public function getStartTime()
     {
         return self::calcStartTime($this);
+    }
+
+    public function getLastStartTime()
+    {
+      $parts = json_decode($this->time_log) ?: [];
+
+      if (count($parts)) {
+          $index = count($parts) - 1;
+          return $parts[$index][0];
+      } else {
+          return '';
+      }
     }
 
     /**
@@ -150,6 +180,97 @@ class Task extends EntityModel
     public function getRoute()
     {
         return "/tasks/{$this->public_id}/edit";
+    }
+
+    public function getName()
+    {
+        return '#' . $this->public_id;
+    }
+
+    public function getDisplayName()
+    {
+        if ($this->description) {
+            return mb_strimwidth($this->description, 0, 16, "...");
+        }
+
+        return '#' . $this->public_id;
+    }
+
+    public function scopeDateRange($query, $startDate, $endDate)
+    {
+        $query->whereRaw('cast(substring(time_log, 3, 10) as unsigned) >= ' . $startDate->format('U'));
+        $query->whereRaw('cast(substring(time_log, 3, 10) as unsigned) <= ' . $endDate->format('U'));
+
+        return $query;
+    }
+
+    public static function getStatuses($entityType = false)
+    {
+        $statuses = [];
+        $statuses[TASK_STATUS_LOGGED] = trans('texts.logged');
+        $statuses[TASK_STATUS_RUNNING] = trans('texts.running');
+        $statuses[TASK_STATUS_INVOICED] = trans('texts.invoiced');
+        $statuses[TASK_STATUS_PAID] = trans('texts.paid');
+
+        return $statuses;
+    }
+
+    public static function calcStatusLabel($isRunning, $balance, $invoiceNumber)
+    {
+        if ($invoiceNumber) {
+            if (floatval($balance) > 0) {
+                $label = 'invoiced';
+            } else {
+                $label = 'paid';
+            }
+        } elseif ($isRunning) {
+            $label = 'running';
+        } else {
+            $label = 'logged';
+        }
+
+        return trans("texts.{$label}");
+    }
+
+    public static function calcStatusClass($isRunning, $balance, $invoiceNumber)
+    {
+        if ($invoiceNumber) {
+            if (floatval($balance)) {
+                return 'default';
+            } else {
+                return 'success';
+            }
+        } elseif ($isRunning) {
+            return 'primary';
+        } else {
+            return 'warning';
+        }
+    }
+
+    public function statusClass()
+    {
+        if ($this->invoice) {
+            $balance = $this->invoice->balance;
+            $invoiceNumber = $this->invoice->invoice_number;
+        } else {
+            $balance = 0;
+            $invoiceNumber = false;
+        }
+
+        return static::calcStatusClass($this->is_running, $balance, $invoiceNumber);
+    }
+
+    public function statusLabel()
+    {
+        if ($this->invoice) {
+            $balance = $this->invoice->balance;
+            $invoiceNumber = $this->invoice->invoice_number;
+        } else {
+            $balance = 0;
+            $invoiceNumber = false;
+        }
+
+        return static::calcStatusLabel($this->is_running, $balance, $invoiceNumber);
     }
 }
 

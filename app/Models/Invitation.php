@@ -97,8 +97,8 @@ class Invitation extends EntityModel
             if ($this->$field && $this->field != '0000-00-00 00:00:00') {
                 $date = Utils::dateToString($this->$field);
                 $hasValue = true;
+                $parts[] = trans('texts.invitation_status_' . $status) . ': ' . $date;
             }
-            $parts[] = trans('texts.invitation_status_' . $status) . ': ' . $date;
         }
 
         return $hasValue ? implode($parts, '<br/>') : false;
@@ -123,6 +123,11 @@ class Invitation extends EntityModel
         $this->save();
     }
 
+    public function isSent()
+    {
+        return $this->sent_date && $this->sent_date != '0000-00-00 00:00:00';
+    }
+
     public function markViewed()
     {
         $invoice = $this->invoice;
@@ -133,5 +138,14 @@ class Invitation extends EntityModel
 
         $invoice->markViewed();
         $client->markLoggedIn();
+    }
+
+    public function signatureDiv()
+    {
+        if ( ! $this->signature_base64) {
+            return false;
+        }
+
+        return sprintf('<img src="data:image/svg+xml;base64,%s"></img><p/>%s: %s', $this->signature_base64, trans('texts.signed'), Utils::fromSqlDateTime($this->signature_date));
     }
 }

@@ -23,6 +23,8 @@ class Kernel extends ConsoleKernel
         'App\Console\Commands\SendReminders',
         'App\Console\Commands\GenerateResources',
         'App\Console\Commands\TestOFX',
+        'App\Console\Commands\MakeModule',
+        'App\Console\Commands\MakeClass',
     ];
 
     /**
@@ -52,5 +54,10 @@ class Kernel extends ConsoleKernel
                 ->sendOutputTo($logFile)
                 ->daily();
         }
+
+        $schedule
+            ->command('updater:check-for-update --prefixVersionWith=v')
+            ->sendOutputTo($logFile)
+            ->daily();
     }
 }

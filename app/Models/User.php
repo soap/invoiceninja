@@ -5,19 +5,22 @@ use Event;
 use App\Libraries\Utils;
 use App\Events\UserSettingsChanged;
 use App\Events\UserSignedUp;
-use Illuminate\Auth\Authenticatable;
-use Illuminate\Foundation\Auth\Access\Authorizable;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Auth\Passwords\CanResetPassword;
-use Illuminate\Contracts\Auth\Authenticatable as AuthenticatableContract;
-use Illuminate\Contracts\Auth\Access\Authorizable as AuthorizableContract;
-use Illuminate\Contracts\Auth\CanResetPassword as CanResetPasswordContract;
+use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Laracasts\Presenter\PresentableTrait;
 
 /**
  * Class User
  */
-class User extends Model implements AuthenticatableContract, AuthorizableContract, CanResetPasswordContract {
+class User extends Authenticatable
+{
+    use PresentableTrait;
+
+    /**
+     * @var string
+     */
+    protected $presenter = 'App\Ninja\Presenters\UserPresenter';
+
     /**
      * @var array
      */
@@ -26,8 +29,6 @@ class User extends Model implements AuthenticatableContract, AuthorizableContrac
         'view_all' => 0b0010,
         'edit_all' => 0b0100,
     ];
-
-    use Authenticatable, Authorizable, CanResetPassword;
 
     /**
      * The database table used by the model.
@@ -100,26 +101,6 @@ class User extends Model implements AuthenticatableContract, AuthorizableContrac
     public function getPersonType()
     {
         return PERSON_USER;
-    }
-
-    /**
-     * Get the unique identifier for the user.
-     *
-     * @return mixed
-     */
-    public function getAuthIdentifier()
-    {
-        return $this->getKey();
-    }
-
-    /**
-     * Get the password for the user.
-     *
-     * @return string
-     */
-    public function getAuthPassword()
-    {
-        return $this->password;
     }
 
     /**
@@ -258,35 +239,9 @@ class User extends Model implements AuthenticatableContract, AuthorizableContrac
         return MAX_NUM_VENDORS;
     }
 
-
-    /**
-     * @return mixed
-     */
-    public function getRememberToken()
-    {
-        return $this->remember_token;
-    }
-
-    /**
-     * @param string $value
-     */
-    public function setRememberToken($value)
-    {
-        $this->remember_token = $value;
-    }
-
-    /**
-     * @return string
-     */
-    public function getRememberTokenName()
-    {
-        return 'remember_token';
-    }
-
     public function clearSession()
     {
         $keys = [
-            RECENTLY_VIEWED,
             SESSION_USER_ACCOUNTS,
             SESSION_TIMEZONE,
             SESSION_DATE_FORMAT,
@@ -426,7 +381,7 @@ class User extends Model implements AuthenticatableContract, AuthorizableContrac
 
     public function caddAddUsers()
     {
-        if ( ! Utils::isNinja()) {
+        if ( ! Utils::isNinjaProd()) {
             return true;
         } elseif ( ! $this->hasFeature(FEATURE_USERS)) {
             return false;
@@ -441,6 +396,12 @@ class User extends Model implements AuthenticatableContract, AuthorizableContrac
         }
 
         return $numUsers < $company->num_users;
+    }
+
+    public function canCreateOrEdit($entityType, $entity = false)
+    {
+        return (($entity && $this->can('edit', $entity))
+            || (!$entity && $this->can('create', $entityType)));
     }
 }
 

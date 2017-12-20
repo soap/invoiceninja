@@ -19,6 +19,7 @@ use App\Services\ClientService;
 use App\Http\Requests\ClientRequest;
 use App\Http\Requests\CreateClientRequest;
 use App\Http\Requests\UpdateClientRequest;
+use App\Ninja\Datatables\ClientDatatable;
 
 class ClientController extends BaseController
 {
@@ -41,20 +42,11 @@ class ClientController extends BaseController
      */
     public function index()
     {
-        return View::make('list', [
+        return View::make('list_wrapper', [
             'entityType' => ENTITY_CLIENT,
+            'datatable' => new ClientDatatable(),
             'title' => trans('texts.clients'),
-            'sortCol' => '4',
-            'columns' => Utils::trans([
-              'checkbox',
-              'client',
-              'contact',
-              'email',
-              'date_created',
-              'last_login',
-              'balance',
-              ''
-            ]),
+            'statuses' => Client::getStatuses(),
         ]);
     }
 
@@ -89,15 +81,13 @@ class ClientController extends BaseController
     public function show(ClientRequest $request)
     {
         $client = $request->entity();
-
         $user = Auth::user();
-        Utils::trackViewed($client->getDisplayName(), ENTITY_CLIENT);
 
         $actionLinks = [];
         if($user->can('create', ENTITY_TASK)){
             $actionLinks[] = ['label' => trans('texts.new_task'), 'url' => URL::to('/tasks/create/'.$client->public_id)];
         }
-        if (Utils::hasFeature(FEATURE_QUOTES) && $user->can('create', ENTITY_INVOICE)) {
+        if (Utils::hasFeature(FEATURE_QUOTES) && $user->can('create', ENTITY_QUOTE)) {
             $actionLinks[] = ['label' => trans('texts.new_quote'), 'url' => URL::to('/quotes/create/'.$client->public_id)];
         }
 
@@ -125,9 +115,9 @@ class ClientController extends BaseController
             'client' => $client,
             'credit' => $client->getTotalCredit(),
             'title' => trans('texts.view_client'),
-            'hasRecurringInvoices' => Invoice::scope()->where('is_recurring', '=', true)->whereClientId($client->id)->count() > 0,
-            'hasQuotes' => Invoice::scope()->invoiceType(INVOICE_TYPE_QUOTE)->whereClientId($client->id)->count() > 0,
-            'hasTasks' => Task::scope()->whereClientId($client->id)->count() > 0,
+            'hasRecurringInvoices' => Invoice::scope()->recurring()->withArchived()->whereClientId($client->id)->count() > 0,
+            'hasQuotes' => Invoice::scope()->quotes()->withArchived()->whereClientId($client->id)->count() > 0,
+            'hasTasks' => Task::scope()->withArchived()->whereClientId($client->id)->count() > 0,
             'gatewayLink' => $token ? $token->gatewayLink() : false,
             'gatewayName' => $token ? $token->gatewayName() : false,
         ];
@@ -223,10 +213,6 @@ class ClientController extends BaseController
         $message = Utils::pluralize($action.'d_client', $count);
         Session::flash('message', $message);
 
-        if ($action == 'restore' && $count == 1) {
-            return Redirect::to('clients/'.Utils::getFirst($ids));
-        } else {
-            return Redirect::to('clients');
-        }
+        return $this->returnBulk(ENTITY_CLIENT, $action, $ids);
     }
 }

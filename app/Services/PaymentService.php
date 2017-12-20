@@ -3,6 +3,7 @@
 use App\Models\Invoice;
 use Utils;
 use Auth;
+use Exception;
 use App\Models\Account;
 use App\Models\Client;
 use App\Models\Activity;
@@ -120,12 +121,16 @@ class PaymentService extends BaseService
             }
         }
 
-        return $paymentDriver->completeOnsitePurchase(false, $paymentMethod);
+        try {
+            return $paymentDriver->completeOnsitePurchase(false, $paymentMethod);
+        } catch (Exception $exception) {
+            return false;
+        }
     }
 
     public function getDatatable($clientPublicId, $search)
     {
-        $datatable = new PaymentDatatable( ! $clientPublicId, $clientPublicId);
+        $datatable = new PaymentDatatable(true, $clientPublicId);
         $query = $this->paymentRepo->find($clientPublicId, $search);
 
         if(!Utils::hasPermission('view_all')){
@@ -149,10 +154,11 @@ class PaymentService extends BaseService
             foreach ($payments as $payment) {
                 if (Auth::user()->can('edit', $payment)) {
                     $amount = !empty($params['amount']) ? floatval($params['amount']) : null;
-                    $accountGateway = $payment->account_gateway;
-                    $paymentDriver = $accountGateway->paymentDriver();
-                    if ($paymentDriver->refundPayment($payment, $amount)) {
-                        $successful++;
+                    if ($accountGateway = $payment->account_gateway) {
+                        $paymentDriver = $accountGateway->paymentDriver();
+                        if ($paymentDriver->refundPayment($payment, $amount)) {
+                            $successful++;
+                        }
                     }
                 }
             }
